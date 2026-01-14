@@ -1606,39 +1606,46 @@ class DataService:
         """获取Level2行情快照数据（包含10档行情）- 支持多标的"""
         try:
             results = {}
-            
+
             if self._should_use_real_data():
                 try:
-                    data = xtdata.get_l2_quote(stock_codes)
-                    
-                    if not data:
-                        logger.warning("未获取到任何Level2数据")
-                        return results
-                    
+                    # L2 函数需要逐个股票调用
                     for stock_code in stock_codes:
-                        if stock_code in data:
-                            quote = data[stock_code]
-                            results[stock_code] = L2QuoteData(
-                                time=str(quote.get('time', '')),
-                                last_price=float(quote.get('lastPrice', 0)),
-                                open=quote.get('open'),
-                                high=quote.get('high'),
-                                low=quote.get('low'),
-                                amount=quote.get('amount'),
-                                volume=quote.get('volume'),
-                                pvolume=quote.get('pvolume'),
-                                open_int=quote.get('openInt'),
-                                stock_status=quote.get('stockStatus'),
-                                transaction_num=quote.get('transactionNum'),
-                                last_close=quote.get('lastClose'),
-                                last_settlement_price=quote.get('lastSettlementPrice'),
-                                settlement_price=quote.get('settlementPrice'),
-                                pe=quote.get('pe'),
-                                ask_price=quote.get('askPrice', []),  # 10档卖价
-                                bid_price=quote.get('bidPrice', []),  # 10档买价
-                                ask_vol=quote.get('askVol', []),      # 10档卖量
-                                bid_vol=quote.get('bidVol', [])       # 10档买量
-                            )
+                        try:
+                            data = xtdata.get_l2_quote(stock_code)
+
+                            if not data:
+                                logger.warning(f"未获取到 {stock_code} 的Level2数据")
+                                continue
+
+                            # 返回格式可能是 dict 或直接是数据
+                            quote = data.get(stock_code, data) if isinstance(data, dict) else data
+
+                            if quote:
+                                results[stock_code] = L2QuoteData(
+                                    time=str(quote.get('time', '')),
+                                    last_price=float(quote.get('lastPrice', 0)),
+                                    open=quote.get('open'),
+                                    high=quote.get('high'),
+                                    low=quote.get('low'),
+                                    amount=quote.get('amount'),
+                                    volume=quote.get('volume'),
+                                    pvolume=quote.get('pvolume'),
+                                    open_int=quote.get('openInt'),
+                                    stock_status=quote.get('stockStatus'),
+                                    transaction_num=quote.get('transactionNum'),
+                                    last_close=quote.get('lastClose'),
+                                    last_settlement_price=quote.get('lastSettlementPrice'),
+                                    settlement_price=quote.get('settlementPrice'),
+                                    pe=quote.get('pe'),
+                                    ask_price=quote.get('askPrice', []),  # 10档卖价
+                                    bid_price=quote.get('bidPrice', []),  # 10档买价
+                                    ask_vol=quote.get('askVol', []),      # 10档卖量
+                                    bid_vol=quote.get('bidVol', [])       # 10档买量
+                                )
+                        except Exception as e:
+                            logger.warning(f"获取 {stock_code} 的Level2快照失败: {e}")
+                            continue
                     return results
                 except Exception as e:
                     logger.error(f"获取Level2快照失败: {e}")
@@ -1663,21 +1670,23 @@ class DataService:
         """获取Level2逐笔委托数据 - 支持多标的"""
         try:
             results = {}
-            
+
             if self._should_use_real_data():
                 try:
-                    data = xtdata.get_l2_order(stock_codes)
-                    
-                    if not data:
-                        logger.warning("未获取到任何Level2委托数据")
-                        return results
-                    
+                    # L2 函数需要逐个股票调用
                     for stock_code in stock_codes:
-                        if stock_code in data:
-                            orders = data[stock_code]
+                        try:
+                            data = xtdata.get_l2_order(stock_code)
+
+                            if not data:
+                                logger.warning(f"未获取到 {stock_code} 的Level2委托数据")
+                                continue
+
+                            # 返回格式可能是 dict 或直接是列表
+                            orders = data.get(stock_code, data) if isinstance(data, dict) else data
                             order_list = []
-                            
-                            if hasattr(orders, '__iter__'):
+
+                            if orders and hasattr(orders, '__iter__'):
                                 for order in orders:
                                     order_list.append(L2OrderData(
                                         time=str(order.get('time', '')),
@@ -1687,7 +1696,11 @@ class DataService:
                                         entrust_type=order.get('entrustType'),
                                         entrust_direction=order.get('entrustDirection')
                                     ))
-                            results[stock_code] = order_list
+                            if order_list:
+                                results[stock_code] = order_list
+                        except Exception as e:
+                            logger.warning(f"获取 {stock_code} 的Level2委托失败: {e}")
+                            continue
                     return results
                 except Exception as e:
                     logger.error(f"获取Level2逐笔委托失败: {e}")
@@ -1713,21 +1726,23 @@ class DataService:
         """获取Level2逐笔成交数据 - 支持多标的"""
         try:
             results = {}
-            
+
             if self._should_use_real_data():
                 try:
-                    data = xtdata.get_l2_transaction(stock_codes)
-                    
-                    if not data:
-                        logger.warning("未获取到任何Level2成交数据")
-                        return results
-                    
+                    # L2 函数需要逐个股票调用
                     for stock_code in stock_codes:
-                        if stock_code in data:
-                            transactions = data[stock_code]
+                        try:
+                            data = xtdata.get_l2_transaction(stock_code)
+
+                            if not data:
+                                logger.warning(f"未获取到 {stock_code} 的Level2成交数据")
+                                continue
+
+                            # 返回格式可能是 dict 或直接是列表
+                            transactions = data.get(stock_code, data) if isinstance(data, dict) else data
                             trans_list = []
-                            
-                            if hasattr(transactions, '__iter__'):
+
+                            if transactions and hasattr(transactions, '__iter__'):
                                 for trans in transactions:
                                     trans_list.append(L2TransactionData(
                                         time=str(trans.get('time', '')),
@@ -1740,7 +1755,11 @@ class DataService:
                                         trade_type=trans.get('tradeType'),
                                         trade_flag=trans.get('tradeFlag')
                                     ))
-                            results[stock_code] = trans_list
+                            if trans_list:
+                                results[stock_code] = trans_list
+                        except Exception as e:
+                            logger.warning(f"获取 {stock_code} 的Level2成交失败: {e}")
+                            continue
                     return results
                 except Exception as e:
                     logger.error(f"获取Level2逐笔成交失败: {e}")
