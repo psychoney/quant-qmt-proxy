@@ -119,6 +119,14 @@ async def lifespan(app: FastAPI):
     # 关闭时执行
     logger.info("REST API 服务正在关闭...")
 
+    # 关闭异步工具的线程池
+    try:
+        from app.utils.async_utils import shutdown_executor
+        shutdown_executor()
+        logger.info("异步线程池已关闭")
+    except Exception as e:
+        logger.error(f"关闭异步线程池失败: {e}")
+
     # 关闭订阅管理器
     try:
         subscription_manager = get_subscription_manager(settings)

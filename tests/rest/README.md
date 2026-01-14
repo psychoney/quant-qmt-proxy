@@ -55,11 +55,13 @@ tests/rest/
 ### 前置条件
 
 1. **安装依赖**
+
    ```bash
    pip install pytest pytest-asyncio httpx
    ```
 
 2. **启动 REST API 服务器**
+
    ```bash
    # 方式1: 仅 REST
    python run.py
@@ -142,6 +144,7 @@ SKIP_INTEGRATION_TESTS = False  # 默认运行集成测试
 ```
 
 **重要说明**:
+
 - 当 `SKIP_INTEGRATION_TESTS=False` 时，测试会实际连接账户并进行真实操作
 - 当 `SKIP_INTEGRATION_TESTS=True` 时，测试使用模拟 session_id，会收到 "账户未连接" 的 400 错误（这是预期行为）
 
@@ -155,11 +158,11 @@ from httpx import Client
 
 class TestNewFeature:
     """测试新功能"""
-    
+
     def test_new_endpoint(self, http_client: Client):
         """测试新端点"""
         response = http_client.get("/api/v1/new-endpoint")
-        
+
         assert response.status_code == 200
         result = response.json()
         assert result.get("success") is True
@@ -197,6 +200,7 @@ def test_performance(self):
 ```
 
 运行特定标记的测试：
+
 ```bash
 pytest tests/rest/ -v -m "not slow"      # 跳过慢速测试
 pytest tests/rest/ -v -m integration     # 只运行集成测试
@@ -228,6 +232,7 @@ def test_debug_example(self):
 ```
 
 然后运行：
+
 ```bash
 pytest tests/rest/test_data_api.py::test_debug_example -v -s
 ```
@@ -254,21 +259,22 @@ pytest tests/rest/ -v --junitxml=junit.xml
 
 ### 预期性能指标
 
-| 操作 | 目标延迟 | 说明 |
-|------|---------|------|
-| 健康检查 | < 100ms | 简单状态查询 |
-| 单股行情查询 | < 500ms | 小数据量查询 |
-| 批量行情查询 | < 2s | 50只股票 |
-| 财务数据查询 | < 1s | 单只股票，多张表 |
-| 提交订单 | < 1s | 单笔订单 |
-| 查询持仓 | < 500ms | 当前持仓 |
-| 查询订单 | < 500ms | 当日订单 |
+| 操作         | 目标延迟 | 说明             |
+| ------------ | -------- | ---------------- |
+| 健康检查     | < 100ms  | 简单状态查询     |
+| 单股行情查询 | < 500ms  | 小数据量查询     |
+| 批量行情查询 | < 2s     | 50只股票         |
+| 财务数据查询 | < 1s     | 单只股票，多张表 |
+| 提交订单     | < 1s     | 单笔订单         |
+| 查询持仓     | < 500ms  | 当前持仓         |
+| 查询订单     | < 500ms  | 当日订单         |
 
 ## 🔍 常见问题
 
 ### Q1: 测试失败提示连接超时
 
 **A:** 确保 REST API 服务器已启动：
+
 ```bash
 python run.py
 ```
@@ -286,6 +292,7 @@ python run.py
 ### Q4: 导入模块失败
 
 **A:** 确保项目根目录在 Python 路径中：
+
 ```bash
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 ```

@@ -1,10 +1,14 @@
 """
 交易服务路由
+
+所有路由使用 run_sync 将同步 xttrader 调用放入线程池执行，
+防止阻塞 FastAPI 事件循环导致服务卡死。
 """
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.config import Settings, get_settings
 from app.dependencies import get_trading_service, verify_api_key
 from app.models.trading_models import (
     AccountInfo,
@@ -20,6 +24,7 @@ from app.models.trading_models import (
     TradeInfo,
 )
 from app.services.trading_service import TradingService
+from app.utils.async_utils import run_sync
 from app.utils.exceptions import TradingServiceException, handle_xtquant_exception
 from app.utils.helpers import format_response
 
@@ -30,14 +35,20 @@ router = APIRouter(prefix="/api/v1/trading", tags=["交易服务"])
 async def connect_account(
     request: ConnectRequest,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """连接交易账户"""
     try:
-        result = trading_service.connect_account(request)
+        result = await run_sync(
+            trading_service.connect_account, request,
+            timeout=settings.request_timeout.trading
+        )
         return result
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -49,17 +60,23 @@ async def connect_account(
 async def disconnect_account(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """断开交易账户"""
     try:
-        success = trading_service.disconnect_account(session_id)
+        success = await run_sync(
+            trading_service.disconnect_account, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return format_response(
             data={"success": success},
             message="断开账户成功" if success else "断开账户失败"
         )
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -71,14 +88,20 @@ async def disconnect_account(
 async def get_account_info(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取账户信息"""
     try:
-        result = trading_service.get_account_info(session_id)
+        result = await run_sync(
+            trading_service.get_account_info, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return result
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -90,14 +113,20 @@ async def get_account_info(
 async def get_positions(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取持仓信息"""
     try:
-        results = trading_service.get_positions(session_id)
+        results = await run_sync(
+            trading_service.get_positions, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return results
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -110,14 +139,20 @@ async def submit_order(
     session_id: str,
     request: OrderRequest,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """提交订单"""
     try:
-        result = trading_service.submit_order(session_id, request)
+        result = await run_sync(
+            trading_service.submit_order, session_id, request,
+            timeout=settings.request_timeout.trading
+        )
         return result
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -130,17 +165,23 @@ async def cancel_order(
     session_id: str,
     request: CancelOrderRequest,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """撤销订单"""
     try:
-        success = trading_service.cancel_order(session_id, request)
+        success = await run_sync(
+            trading_service.cancel_order, session_id, request,
+            timeout=settings.request_timeout.trading
+        )
         return format_response(
             data={"success": success},
             message="撤销订单成功" if success else "撤销订单失败"
         )
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -152,14 +193,20 @@ async def cancel_order(
 async def get_orders(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取订单列表"""
     try:
-        results = trading_service.get_orders(session_id)
+        results = await run_sync(
+            trading_service.get_orders, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return results
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -171,14 +218,20 @@ async def get_orders(
 async def get_trades(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取成交记录"""
     try:
-        results = trading_service.get_trades(session_id)
+        results = await run_sync(
+            trading_service.get_trades, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return results
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -190,14 +243,20 @@ async def get_trades(
 async def get_asset_info(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取资产信息"""
     try:
-        result = trading_service.get_asset_info(session_id)
+        result = await run_sync(
+            trading_service.get_asset_info, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return result
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -209,14 +268,20 @@ async def get_asset_info(
 async def get_risk_info(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取风险信息"""
     try:
-        result = trading_service.get_risk_info(session_id)
+        result = await run_sync(
+            trading_service.get_risk_info, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return result
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -228,14 +293,20 @@ async def get_risk_info(
 async def get_strategies(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取策略列表"""
     try:
-        results = trading_service.get_strategies(session_id)
+        results = await run_sync(
+            trading_service.get_strategies, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return results
     except TradingServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -247,15 +318,21 @@ async def get_strategies(
 async def get_connection_status(
     session_id: str,
     api_key: str = Depends(verify_api_key),
-    trading_service: TradingService = Depends(get_trading_service)
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取连接状态"""
     try:
-        is_connected = trading_service.is_connected(session_id)
+        is_connected = await run_sync(
+            trading_service.is_connected, session_id,
+            timeout=settings.request_timeout.trading
+        )
         return format_response(
             data={"connected": is_connected},
             message="连接状态查询成功"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -87,19 +87,19 @@ pytest tests/grpc/ -v --durations=0
 
 ## 📋 常用参数
 
-| 参数 | 说明 |
-|------|------|
-| `-v` | 详细输出 |
-| `-s` | 显示 print 输出 |
-| `-x` | 遇到第一个失败就停止 |
-| `-k EXPRESSION` | 运行匹配表达式的测试 |
-| `-m MARKEXPR` | 运行匹配标记的测试 |
-| `--lf` | 只运行上次失败的测试 |
-| `--ff` | 先运行失败的测试 |
-| `--tb=short` | 短格式的错误信息 |
-| `--tb=long` | 长格式的错误信息 |
-| `--collect-only` | 只收集测试，不运行 |
-| `-rs` | 显示跳过测试的原因 |
+| 参数             | 说明                 |
+| ---------------- | -------------------- |
+| `-v`             | 详细输出             |
+| `-s`             | 显示 print 输出      |
+| `-x`             | 遇到第一个失败就停止 |
+| `-k EXPRESSION`  | 运行匹配表达式的测试 |
+| `-m MARKEXPR`    | 运行匹配标记的测试   |
+| `--lf`           | 只运行上次失败的测试 |
+| `--ff`           | 先运行失败的测试     |
+| `--tb=short`     | 短格式的错误信息     |
+| `--tb=long`      | 长格式的错误信息     |
+| `--collect-only` | 只收集测试，不运行   |
+| `-rs`            | 显示跳过测试的原因   |
 
 ## 🔧 配置修改
 
@@ -129,6 +129,7 @@ def test_debug():
 ```
 
 运行：
+
 ```bash
 pytest tests/grpc/test_data_grpc_service.py::test_debug -v -s
 ```
@@ -142,6 +143,7 @@ logger.info("调试信息")
 ```
 
 运行：
+
 ```bash
 pytest tests/grpc/ -v -s --log-cli-level=DEBUG
 ```

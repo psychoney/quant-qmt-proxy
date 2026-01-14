@@ -1,5 +1,8 @@
 """
 数据服务路由
+
+所有路由使用 run_sync 将同步 xtdata 调用放入线程池执行，
+防止阻塞 FastAPI 事件循环导致服务卡死。
 """
 from datetime import datetime
 from typing import List
@@ -36,6 +39,7 @@ from app.models.data_models import (  # 阶段2: 行情数据请求模型; 阶�
     TradingCalendarResponse,
 )
 from app.services.data_service import DataService
+from app.utils.async_utils import run_sync, run_sync_no_timeout
 from app.utils.exceptions import DataServiceException, handle_xtquant_exception
 from app.utils.helpers import format_response
 from app.utils.logger import logger
@@ -47,14 +51,20 @@ router = APIRouter(prefix="/api/v1/data", tags=["数据服务"])
 async def get_market_data(
     request: MarketDataRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ) -> List[MarketDataResponse]:
     """获取市场数据"""
     try:
-        results = data_service.get_market_data(request)
+        results = await run_sync(
+            data_service.get_market_data, request,
+            timeout=settings.request_timeout.market_data
+        )
         return results
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -66,14 +76,20 @@ async def get_market_data(
 async def get_financial_data(
     request: FinancialDataRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 )-> List[FinancialDataResponse]:
     """获取财务数据"""
     try:
-        results = data_service.get_financial_data(request)
+        results = await run_sync(
+            data_service.get_financial_data, request,
+            timeout=settings.request_timeout.financial_data
+        )
         return results
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -84,14 +100,20 @@ async def get_financial_data(
 @router.get("/sectors", response_model=List[SectorResponse])
 async def get_sector_list(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ) -> List[SectorResponse]:
     """获取板块列表"""
     try:
-        results = data_service.get_sector_list()
+        results = await run_sync(
+            data_service.get_sector_list,
+            timeout=settings.request_timeout.default
+        )
         return results
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -103,14 +125,18 @@ async def get_sector_list(
 async def get_sector_stocks(
     request: SectorRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取板块内股票列表"""
     try:
         # 调用 get_sector_list 获取所有板块，或实现单独的 get_sector_stocks 方法
         # 这里先使用 get_sector_list 并过滤
-        all_sectors = data_service.get_sector_list()
-        
+        all_sectors = await run_sync(
+            data_service.get_sector_list,
+            timeout=settings.request_timeout.default
+        )
+
         # 查找匹配的板块
         for sector in all_sectors:
             if sector.sector_name == request.sector_name:
@@ -118,7 +144,7 @@ async def get_sector_stocks(
                     data=sector.dict(),
                     message="获取板块股票列表成功"
                 )
-        
+
         # 未找到板块
         return format_response(
             data={"sector_name": request.sector_name, "stock_list": []},
@@ -126,6 +152,8 @@ async def get_sector_stocks(
         )
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -137,14 +165,20 @@ async def get_sector_stocks(
 async def get_index_weight(
     request: IndexWeightRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取指数权重"""
     try:
-        result = data_service.get_index_weight(request)
+        result = await run_sync(
+            data_service.get_index_weight, request,
+            timeout=settings.request_timeout.default
+        )
         return result
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -156,14 +190,20 @@ async def get_index_weight(
 async def get_trading_calendar(
     year: int,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取交易日历"""
     try:
-        result = data_service.get_trading_calendar(year)
+        result = await run_sync(
+            data_service.get_trading_calendar, year,
+            timeout=settings.request_timeout.default
+        )
         return result
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -175,14 +215,20 @@ async def get_trading_calendar(
 async def get_instrument_info(
     stock_code: str,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取合约信息"""
     try:
-        result = data_service.get_instrument_info(stock_code)
+        result = await run_sync(
+            data_service.get_instrument_info, stock_code,
+            timeout=settings.request_timeout.default
+        )
         return result
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -218,12 +264,18 @@ async def get_etf_info(
 async def get_instrument_type(
     stock_code: str,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取合约类型"""
     try:
-        result = data_service.get_instrument_type(stock_code)
+        result = await run_sync(
+            data_service.get_instrument_type, stock_code,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=result, message="获取合约类型成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -234,12 +286,18 @@ async def get_instrument_type(
 @router.get("/holidays")
 async def get_holidays(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取节假日列表"""
     try:
-        result = data_service.get_holidays()
+        result = await run_sync(
+            data_service.get_holidays,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=result, message="获取节假日列表成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -250,12 +308,18 @@ async def get_holidays(
 @router.get("/convertible-bonds")
 async def get_cb_info(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取可转债信息"""
     try:
-        result = data_service.get_cb_info()
+        result = await run_sync(
+            data_service.get_cb_info,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=result, message="获取可转债信息成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -266,12 +330,18 @@ async def get_cb_info(
 @router.get("/ipo-info")
 async def get_ipo_info(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取新股申购信息"""
     try:
-        result = data_service.get_ipo_info()
+        result = await run_sync(
+            data_service.get_ipo_info,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=result, message="获取新股申购信息成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -282,12 +352,18 @@ async def get_ipo_info(
 @router.get("/period-list")
 async def get_period_list(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取可用周期列表"""
     try:
-        result = data_service.get_period_list()
+        result = await run_sync(
+            data_service.get_period_list,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=result, message="获取可用周期列表成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -298,12 +374,18 @@ async def get_period_list(
 @router.get("/data-dir")
 async def get_data_dir(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取本地数据路径"""
     try:
-        result = data_service.get_data_dir()
+        result = await run_sync(
+            data_service.get_data_dir,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=result, message="获取数据路径成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -317,12 +399,18 @@ async def get_data_dir(
 async def get_local_data(
     request: LocalDataRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取本地行情数据"""
     try:
-        result = data_service.get_local_data(request)
+        result = await run_sync(
+            data_service.get_local_data, request,
+            timeout=settings.request_timeout.market_data
+        )
         return format_response(data=result, message="获取本地行情数据成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -334,12 +422,18 @@ async def get_local_data(
 async def get_full_tick(
     request: FullTickRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取完整tick数据"""
     try:
-        result = data_service.get_full_tick(request)
+        result = await run_sync(
+            data_service.get_full_tick, request,
+            timeout=settings.request_timeout.market_data
+        )
         return format_response(data=result, message="获取完整tick数据成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -351,12 +445,18 @@ async def get_full_tick(
 async def get_divid_factors(
     request: DividFactorsRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取除权除息数据"""
     try:
-        result = data_service.get_divid_factors(request.stock_code)
+        result = await run_sync(
+            data_service.get_divid_factors, request.stock_code,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=result, message="获取除权除息数据成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -368,12 +468,18 @@ async def get_divid_factors(
 async def get_full_kline(
     request: FullKlineRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取完整K线数据（带复权信息）"""
     try:
-        result = data_service.get_full_kline(request)
+        result = await run_sync(
+            data_service.get_full_kline, request,
+            timeout=settings.request_timeout.market_data
+        )
         return format_response(data=result, message="获取完整K线数据成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -382,20 +488,26 @@ async def get_full_kline(
 
 
 # ==================== 阶段3: 数据下载接口 ====================
+# 下载接口使用较长超时或无超时，因为下载操作可能需要较长时间
 
 @router.post("/download/history-data")
 async def download_history_data(
     request: DownloadHistoryDataRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载单只股票历史数据"""
     try:
-        result = data_service.download_history_data(
-            request.stock_code, request.period, request.start_time, 
-            request.end_time, request.incrementally
+        result = await run_sync(
+            data_service.download_history_data,
+            request.stock_code, request.period, request.start_time,
+            request.end_time, request.incrementally,
+            timeout=settings.request_timeout.download
         )
         return format_response(data=result, message="下载历史数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -409,12 +521,16 @@ async def download_history_data_batch(
     api_key: str = Depends(verify_api_key),
     data_service: DataService = Depends(get_data_service)
 ):
-    """批量下载历史数据"""
+    """批量下载历史数据（无超时，可能需要很长时间）"""
     try:
-        result = data_service.download_history_data_batch(
+        # 批量下载使用无超时模式
+        result = await run_sync_no_timeout(
+            data_service.download_history_data_batch,
             request.stock_list, request.period, request.start_time, request.end_time
         )
         return format_response(data=result, message="批量下载历史数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -426,13 +542,19 @@ async def download_history_data_batch(
 async def download_financial_data(
     request: DownloadFinancialDataRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载财务数据"""
     try:
         # 直接传入请求模型给服务层
-        result = data_service.download_financial_data(request)
+        result = await run_sync(
+            data_service.download_financial_data, request,
+            timeout=settings.request_timeout.download
+        )
         return format_response(data=result, message="下载财务数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -448,8 +570,12 @@ async def download_financial_data_batch(
 ):
     """批量下载财务数据（带回调）"""
     try:
-        result = data_service.download_financial_data_batch(request)
+        result = await run_sync_no_timeout(
+            data_service.download_financial_data_batch, request
+        )
         return format_response(data=result, message="批量下载财务数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -460,12 +586,18 @@ async def download_financial_data_batch(
 @router.post("/download/sector-data")
 async def download_sector_data(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载板块数据"""
     try:
-        result = data_service.download_sector_data()
+        result = await run_sync(
+            data_service.download_sector_data,
+            timeout=settings.request_timeout.download
+        )
         return format_response(data=result, message="下载板块数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -477,12 +609,18 @@ async def download_sector_data(
 async def download_index_weight(
     request: DownloadIndexWeightRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载指数权重数据"""
     try:
-        result = data_service.download_index_weight(request)
+        result = await run_sync(
+            data_service.download_index_weight, request,
+            timeout=settings.request_timeout.download
+        )
         return format_response(data=result, message="下载指数权重数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -493,12 +631,18 @@ async def download_index_weight(
 @router.post("/download/cb-data")
 async def download_cb_data(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载可转债数据"""
     try:
-        result = data_service.download_cb_data()
+        result = await run_sync(
+            data_service.download_cb_data,
+            timeout=settings.request_timeout.download
+        )
         return format_response(data=result, message="下载可转债数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -509,12 +653,18 @@ async def download_cb_data(
 @router.post("/download/etf-info")
 async def download_etf_info(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载ETF基础信息"""
     try:
-        result = data_service.download_etf_info()
+        result = await run_sync(
+            data_service.download_etf_info,
+            timeout=settings.request_timeout.download
+        )
         return format_response(data=result, message="下载ETF信息任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -525,12 +675,18 @@ async def download_etf_info(
 @router.post("/download/holiday-data")
 async def download_holiday_data(
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载节假日数据"""
     try:
-        result = data_service.download_holiday_data()
+        result = await run_sync(
+            data_service.download_holiday_data,
+            timeout=settings.request_timeout.download
+        )
         return format_response(data=result, message="下载节假日数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -542,12 +698,18 @@ async def download_holiday_data(
 async def download_history_contracts(
     request: DownloadHistoryContractsRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """下载历史合约数据"""
     try:
-        result = data_service.download_history_contracts(request)
+        result = await run_sync(
+            data_service.download_history_contracts, request,
+            timeout=settings.request_timeout.download
+        )
         return format_response(data=result, message="下载历史合约数据任务已提交")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -562,12 +724,18 @@ async def create_sector_folder(
     parent_node: str = "",
     folder_name: str = "",
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """创建板块文件夹"""
     try:
-        result = data_service.create_sector_folder(parent_node, folder_name)
+        result = await run_sync(
+            data_service.create_sector_folder, parent_node, folder_name,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data={"created_name": result}, message="创建板块文件夹成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -579,15 +747,21 @@ async def create_sector_folder(
 async def create_sector(
     request: dict,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """创建板块"""
     try:
         parent_node = request.get("parent_node", "")
         sector_name = request.get("sector_name", "")
         overwrite = request.get("overwrite", True)
-        result = data_service.create_sector(parent_node, sector_name, overwrite)
+        result = await run_sync(
+            data_service.create_sector, parent_node, sector_name, overwrite,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data={"created_name": result}, message="创建板块成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -599,14 +773,20 @@ async def create_sector(
 async def add_sector(
     request: dict,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """添加股票到板块"""
     try:
         sector_name = request.get("sector_name", "")
         stock_list = request.get("stock_list", [])
-        data_service.add_sector(sector_name, stock_list)
+        await run_sync(
+            data_service.add_sector, sector_name, stock_list,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=None, message="添加股票到板块成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -618,14 +798,20 @@ async def add_sector(
 async def remove_stock_from_sector(
     request: dict,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """从板块移除股票"""
     try:
         sector_name = request.get("sector_name", "")
         stock_list = request.get("stock_list", [])
-        data_service.remove_stock_from_sector(sector_name, stock_list)
+        await run_sync(
+            data_service.remove_stock_from_sector, sector_name, stock_list,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=None, message="从板块移除股票成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -637,12 +823,18 @@ async def remove_stock_from_sector(
 async def remove_sector(
     sector_name: str,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """删除板块"""
     try:
-        data_service.remove_sector(sector_name)
+        await run_sync(
+            data_service.remove_sector, sector_name,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=None, message="删除板块成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -654,14 +846,20 @@ async def remove_sector(
 async def reset_sector(
     request: dict,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """重置板块成分股"""
     try:
         sector_name = request.get("sector_name", "")
         stock_list = request.get("stock_list", [])
-        data_service.reset_sector(sector_name, stock_list)
+        await run_sync(
+            data_service.reset_sector, sector_name, stock_list,
+            timeout=settings.request_timeout.default
+        )
         return format_response(data=None, message="重置板块成分股成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -675,12 +873,18 @@ async def reset_sector(
 async def get_l2_quote(
     request: L2QuoteRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取Level2快照数据（10档行情）"""
     try:
-        result = data_service.get_l2_quote(request.stock_codes)
+        result = await run_sync(
+            data_service.get_l2_quote, request.stock_codes,
+            timeout=settings.request_timeout.market_data
+        )
         return format_response(data=result, message="获取Level2快照数据成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -692,12 +896,18 @@ async def get_l2_quote(
 async def get_l2_order(
     request: L2OrderRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取Level2逐笔委托数据"""
     try:
-        result = data_service.get_l2_order(request.stock_codes)
+        result = await run_sync(
+            data_service.get_l2_order, request.stock_codes,
+            timeout=settings.request_timeout.market_data
+        )
         return format_response(data=result, message="获取Level2逐笔委托数据成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -709,12 +919,18 @@ async def get_l2_order(
 async def get_l2_transaction(
     request: L2TransactionRequest,
     api_key: str = Depends(verify_api_key),
-    data_service: DataService = Depends(get_data_service)
+    data_service: DataService = Depends(get_data_service),
+    settings: Settings = Depends(get_settings)
 ):
     """获取Level2逐笔成交数据"""
     try:
-        result = data_service.get_l2_transaction(request.stock_codes)
+        result = await run_sync(
+            data_service.get_l2_transaction, request.stock_codes,
+            timeout=settings.request_timeout.market_data
+        )
         return format_response(data=result, message="获取Level2逐笔成交数据成功")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -732,10 +948,10 @@ async def create_subscription(
 ):
     """
     创建行情订阅
-    
+
     Args:
         request: 订阅请求（包含股票代码列表、复权类型等）
-    
+
     Returns:
         订阅响应（包含subscription_id）
     """
@@ -745,18 +961,23 @@ async def create_subscription(
 
         # 获取订阅管理器
         subscription_manager = get_subscription_manager(settings)
-        
-        # 根据订阅类型创建订阅
+
+        # 根据订阅类型创建订阅（订阅操作在线程池中执行）
         if request.subscription_type == SubscriptionType.WHOLE_QUOTE:
-            subscription_id = subscription_manager.subscribe_whole_quote()
+            subscription_id = await run_sync(
+                subscription_manager.subscribe_whole_quote,
+                timeout=settings.request_timeout.subscription
+            )
         else:
-            subscription_id = subscription_manager.subscribe_quote(
+            subscription_id = await run_sync(
+                subscription_manager.subscribe_quote,
                 symbols=request.symbols,
                 period=request.period.value,
                 start_date=request.start_date,
-                adjust_type=request.adjust_type
+                adjust_type=request.adjust_type,
+                timeout=settings.request_timeout.subscription
             )
-        
+
         # 构造响应
         response = {
             "subscription_id": subscription_id,
@@ -769,12 +990,14 @@ async def create_subscription(
             "subscription_type": request.subscription_type.value,
             "message": "订阅创建成功"
         }
-        
+
         logger.info(f"创建订阅成功: {subscription_id}")
         return response
-    
+
     except DataServiceException as e:
         raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"创建订阅失败: {e}", exc_info=True)
         raise HTTPException(
@@ -791,10 +1014,10 @@ async def delete_subscription(
 ):
     """
     取消订阅
-    
+
     Args:
         subscription_id: 订阅ID
-    
+
     Returns:
         取消结果
     """
@@ -803,18 +1026,23 @@ async def delete_subscription(
 
         # 获取订阅管理器
         subscription_manager = get_subscription_manager(settings)
-        
+
         # 取消订阅
-        success = subscription_manager.unsubscribe(subscription_id)
-        
+        success = await run_sync(
+            subscription_manager.unsubscribe, subscription_id,
+            timeout=settings.request_timeout.default
+        )
+
         logger.info(f"取消订阅: {subscription_id}, 结果: {success}")
-        
+
         return {
             "success": success,
             "message": "订阅已取消" if success else "订阅不存在",
             "subscription_id": subscription_id
         }
-    
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"取消订阅失败: {e}", exc_info=True)
         raise HTTPException(
@@ -831,10 +1059,10 @@ async def get_subscription_info(
 ):
     """
     获取订阅信息
-    
+
     Args:
         subscription_id: 订阅ID
-    
+
     Returns:
         订阅详细信息
     """
@@ -843,18 +1071,21 @@ async def get_subscription_info(
 
         # 获取订阅管理器
         subscription_manager = get_subscription_manager(settings)
-        
+
         # 获取订阅信息
-        info = subscription_manager.get_subscription_info(subscription_id)
-        
+        info = await run_sync(
+            subscription_manager.get_subscription_info, subscription_id,
+            timeout=settings.request_timeout.default
+        )
+
         if not info:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"message": f"订阅不存在: {subscription_id}"}
             )
-        
+
         return info
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -872,7 +1103,7 @@ async def list_subscriptions(
 ):
     """
     列出所有订阅
-    
+
     Returns:
         所有订阅列表
     """
@@ -881,15 +1112,20 @@ async def list_subscriptions(
 
         # 获取订阅管理器
         subscription_manager = get_subscription_manager(settings)
-        
+
         # 列出所有订阅
-        subscriptions = subscription_manager.list_subscriptions()
-        
+        subscriptions = await run_sync(
+            subscription_manager.list_subscriptions,
+            timeout=settings.request_timeout.default
+        )
+
         return {
             "subscriptions": subscriptions,
             "total": len(subscriptions)
         }
-    
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"列出订阅失败: {e}", exc_info=True)
         raise HTTPException(

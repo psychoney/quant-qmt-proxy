@@ -22,24 +22,28 @@
 ## ✨ 核心特性
 
 ### 🎯 双协议支持
+
 - 🌐 **REST API**: 基于 FastAPI，提供 HTTP/HTTPS 接口，自动生成 Swagger 文档
 - ⚡ **gRPC**: 高性能 RPC 框架，支持流式调用和双向通信
 - 🔔 **WebSocket**: 提供行情订阅实时推送，内置心跳与限流控制
 - 🔄 **统一服务**: 两种协议共享相同的业务逻辑层，一次部署同时服务
 
 ### 🛡️ 安全可靠
+
 - 🔐 **API Key 认证**: 多环境 API Key 管理
 - 🚦 **交易拦截**: dev 模式自动拦截真实交易，保护账户安全
 - 📝 **完整日志**: 基于 Loguru 的结构化日志，支持日志轮转和压缩
 - 🔒 **异常保护**: 全局异常处理，xtdata 连接超时保护
 
 ### 📊 功能完整
+
 - 📈 **市场数据**: K线、分时、tick、财务数据、板块数据、行情订阅
 - 💼 **交易功能**: 下单、撤单、持仓查询、订单管理
 - ❤️ **健康检查**: REST 和 gRPC 双协议健康检查
 - 🎯 **三种模式**: mock/dev/prod 灵活切换
 
 ### ⚙️ 配置灵活
+
 - 📋 **统一配置**: config.yml 集中管理所有配置
 - 🔄 **环境切换**: 通过 APP_MODE 环境变量一键切换模式
 - 🎨 **单例模式**: 配置和服务单例加载，避免重复初始化
@@ -113,6 +117,7 @@ quant-qmt-proxy/
 ### 🎉 v0.0.1-dev (2025-11-02)
 
 **核心修复与增强**:
+
 - ✅ **修复 gRPC 行情订阅**: 解决 asyncio.Queue 在 gRPC 线程中无法创建的问题，实现惰性队列初始化
 - ✅ **复权参数透传**: 实现 `adjust_type` (前复权/后复权) 正确传递到 xtdata API
 - ✅ **空标的校验**: 添加多层验证（Pydantic + 业务逻辑 + gRPC），禁止创建空股票列表订阅
@@ -120,6 +125,7 @@ quant-qmt-proxy/
 - ✅ **测试覆盖增强**: gRPC 订阅测试全部通过 (7 passed, 1 skipped)
 
 **测试结果**:
+
 ```
 tests/grpc/test_subscription_grpc.py::TestSubscriptionGrpc
 ✅ test_subscribe_quote_mock_mode - 基本订阅功能
@@ -131,6 +137,7 @@ tests/grpc/test_subscription_grpc.py::TestSubscriptionGrpc
 ```
 
 ## 近期用例测试结果
+
 <img width="1106" height="619" alt="image" src="https://github.com/user-attachments/assets/c0f56377-e74e-4d70-88bc-bd194b2cf430" />
 
 ## 🚀 快速开始
@@ -177,14 +184,14 @@ $env:APP_MODE="prod"; python run.py
 
 启动后可访问：
 
-| 服务 | 地址 | 说明 |
-|------|------|------|
-| **REST API** | http://localhost:8000 | RESTful API 主入口 |
-| **gRPC** | localhost:50051 | gRPC 服务端口 |
-| **Swagger UI** | http://localhost:8000/docs | 交互式 API 文档 |
-| **ReDoc** | http://localhost:8000/redoc | API 文档（阅读友好） |
-| **健康检查** | http://localhost:8000/health/ | 服务健康状态 |
-| **WebSocket 测试页** | http://localhost:8000/ws/test | 行情推送调试页面 |
+| 服务                 | 地址                          | 说明                 |
+| -------------------- | ----------------------------- | -------------------- |
+| **REST API**         | http://localhost:8000         | RESTful API 主入口   |
+| **gRPC**             | localhost:50051               | gRPC 服务端口        |
+| **Swagger UI**       | http://localhost:8000/docs    | 交互式 API 文档      |
+| **ReDoc**            | http://localhost:8000/redoc   | API 文档（阅读友好） |
+| **健康检查**         | http://localhost:8000/health/ | 服务健康状态         |
+| **WebSocket 测试页** | http://localhost:8000/ws/test | 行情推送调试页面     |
 
 ### 6. 运行测试
 
@@ -205,21 +212,23 @@ pytest tests/ -v
 
 项目支持三种运行模式，通过环境变量 `APP_MODE` 切换：
 
-| 模式 | 连接 xtquant | 真实交易 | 使用场景 |
-|------|------------|---------|---------|
-| **mock** | ❌ 否 | ❌ 禁止 | 开发测试，无需 QMT 客户端 |
-| **dev** | ✅ 是 | ❌ 禁止 | 开发调试，获取真实数据但不下单 |
-| **prod** | ✅ 是 | ✅ 允许 | 生产环境，真实交易 |
+| 模式     | 连接 xtquant | 真实交易 | 使用场景                       |
+| -------- | ------------ | -------- | ------------------------------ |
+| **mock** | ❌ 否        | ❌ 禁止  | 开发测试，无需 QMT 客户端      |
+| **dev**  | ✅ 是        | ❌ 禁止  | 开发调试，获取真实数据但不下单 |
+| **prod** | ✅ 是        | ✅ 允许  | 生产环境，真实交易             |
 
 ### 模式特性
 
 #### 🎭 mock 模式
+
 - ✅ 不需要运行 QMT 客户端
 - ✅ 使用模拟数据响应 API 请求
 - ✅ 适合前端开发、接口测试
 - 📝 订单 ID 前缀: `mock_order_*`
 
 #### 🔧 dev 模式（推荐开发使用）
+
 - ✅ 需要运行 QMT 客户端
 - ✅ 获取真实的市场数据、财务数据
 - ✅ **交易请求被拦截**，返回模拟订单
@@ -228,6 +237,7 @@ pytest tests/ -v
 - 🔒 日志记录所有拦截操作
 
 #### 🚀 prod 模式（谨慎使用）
+
 - ✅ 需要运行 QMT 客户端
 - ✅ 获取真实数据
 - ⚠️ **允许真实交易下单**
@@ -241,6 +251,7 @@ pytest tests/ -v
 ### REST API 接口
 
 #### 数据服务 (`/api/v1/data/`)
+
 - `POST /api/v1/data/market` - 获取市场行情数据
 - `POST /api/v1/data/financial` - 获取财务数据
 - `GET /api/v1/data/sectors` - 获取板块列表
@@ -255,6 +266,7 @@ pytest tests/ -v
 - `DELETE /api/v1/data/subscription/{subscription_id}` - 取消订阅
 
 #### 交易服务 (`/api/v1/trading/`)
+
 - `POST /api/v1/trading/connect` - 连接交易账户
 - `POST /api/v1/trading/disconnect/{session_id}` - 断开账户
 - `GET /api/v1/trading/account/{session_id}` - 获取账户信息
@@ -269,6 +281,7 @@ pytest tests/ -v
 - `GET /api/v1/trading/status/{session_id}` - 查询连接状态
 
 #### 系统服务 (`/health/`)
+
 - `GET /health/` - 健康检查
 - `GET /health/ready` - 就绪检查
 - `GET /health/live` - 存活检查
@@ -276,6 +289,7 @@ pytest tests/ -v
 ### gRPC 接口
 
 #### 数据服务 (DataService)
+
 - `GetMarketData()` - 获取市场数据
 - `GetFinancialData()` - 获取财务数据
 - `GetSectorList()` - 获取板块列表
@@ -290,6 +304,7 @@ pytest tests/ -v
 - `ListSubscriptions()` - 列出所有订阅
 
 #### 交易服务 (TradingService)
+
 - `Connect()` - 连接交易账户
 - `Disconnect()` - 断开连接
 - `GetAccountInfo()` - 获取账户信息
@@ -303,14 +318,17 @@ pytest tests/ -v
 - `GetStrategies()` - 查询策略列表
 
 #### 健康检查服务 (HealthService)
+
 - `Check()` - 健康检查
 - `Watch()` - 健康状态订阅（流式）
 
 ### WebSocket 接口
+
 - `GET /ws/quote/{subscription_id}` - 行情订阅推送，支持 `ping/pong` 心跳
 - `GET /ws/test` - 内置测试页面，可浏览器直接调试订阅
 
-> **✨ 行情订阅特性**: 
+> **✨ 行情订阅特性**:
+>
 > - 支持多股票同时订阅
 > - 支持复权类型选择（none/front/back）
 > - 自动队列管理，防止内存溢出
@@ -322,6 +340,7 @@ pytest tests/ -v
 ## 🔧 技术架构
 
 ### 核心技术栈
+
 - **FastAPI**: 现代高性能 Web 框架
 - **gRPC**: 高性能 RPC 框架
 - **Protocol Buffers**: 数据序列化协议
@@ -331,6 +350,7 @@ pytest tests/ -v
 - **xtquant**: 国金 QMT Python SDK
 
 ### 设计模式
+
 - ✅ **依赖注入**: 使用 FastAPI 的 Depends 系统
 - ✅ **单例模式**: 服务实例全局唯一，避免重复初始化
 - ✅ **策略模式**: 不同模式下的不同行为
@@ -338,6 +358,7 @@ pytest tests/ -v
 - ✅ **适配器模式**: REST 和 gRPC 共享业务逻辑
 
 ### 架构优势
+
 - 🎯 **分层架构**: Router → Service → SDK，职责清晰
 - 🔄 **代码复用**: REST 和 gRPC 共享同一套业务服务
 - ⚡ **高性能**: gRPC 二进制传输，FastAPI 异步处理，惰性队列初始化
@@ -350,12 +371,14 @@ pytest tests/ -v
 ## 🧪 测试覆盖
 
 ### REST API 测试 (tests/rest/)
+
 - ✅ 健康检查测试
 - ✅ 数据服务测试（市场数据、财务数据、板块数据）
 - ✅ 交易服务测试（下单、撤单、持仓查询）
 - ✅ 行情订阅测试（订阅创建、查询、取消、空标的校验）
 
 ### gRPC 测试 (tests/grpc/)
+
 - ✅ 健康检查服务测试（Check、Watch）
 - ✅ 数据服务测试（14 个接口）
 - ✅ 交易服务测试（8 个接口）
@@ -363,6 +386,7 @@ pytest tests/ -v
 - ✅ 订阅管理器单元测试（初始化、多订阅、流式数据）
 
 ### 测试特性
+
 - 🎯 使用 pytest 框架
 - 🔄 支持 mock/dev/prod 三种模式测试
 - 📊 详细的测试报告和日志
@@ -379,6 +403,7 @@ pytest tests/ -v
 > **💡 接口覆盖率**: 20/125+ ≈ 16% | **✨ 最新更新**: gRPC 行情订阅完整实现
 
 #### 数据模块 (14/50+)
+
 - ✅ 市场数据获取（K线、分时、tick）
 - ✅ 财务数据查询
 - ✅ 板块数据管理
@@ -395,6 +420,7 @@ pytest tests/ -v
 - ✅ 事件循环自动管理（gRPC 线程安全）
 
 #### 交易模块 (6/60+)
+
 - ✅ 账户连接管理
 - ✅ 下单/撤单
 - ✅ 持仓查询
@@ -403,6 +429,7 @@ pytest tests/ -v
 - ✅ 资产/风险/策略查询（mock 数据）
 
 #### 系统模块
+
 - ✅ 配置管理（单例模式）
 - ✅ 日志系统（Loguru，结构化日志）
 - ✅ 健康检查（REST + gRPC）
@@ -416,6 +443,7 @@ pytest tests/ -v
 ### 待实现功能 🚧
 
 #### 高优先级 (P0)
+
 - 🔄 L2 行情数据接口（Level2 逐笔数据）
 - ❌ 资产查询接口（真实数据）
 - ❌ 成交查询接口（真实数据）
@@ -423,12 +451,14 @@ pytest tests/ -v
 - ❌ 交易回调推送（WebSocket）
 
 #### 中优先级 (P1)
+
 - ❌ 历史数据下载管理
 - ❌ 财务数据下载管理
 - ❌ 新股申购功能
 - ❌ 行情订阅性能优化（批量订阅）
 
 #### 低优先级 (P2)
+
 - ❌ 信用交易（融资融券）
 - ❌ 资金管理（银证转账）
 - ❌ 约券功能
@@ -471,14 +501,14 @@ modes:
   mock:
     connect_xtquant: false
     allow_real_trading: false
-    
+
   dev:
     connect_xtquant: true
-    allow_real_trading: false  # 🔒 拦截交易
-    
+    allow_real_trading: false # 🔒 拦截交易
+
   prod:
     connect_xtquant: true
-    allow_real_trading: true   # ⚠️ 允许真实交易
+    allow_real_trading: true # ⚠️ 允许真实交易
 ```
 
 ---
@@ -486,17 +516,21 @@ modes:
 ## 💡 开发建议
 
 ### 本地开发流程
+
 1. 使用 **mock 模式** 进行前端开发和接口测试
 2. 使用 **dev 模式** 连接真实 QMT 进行策略开发
 3. 充分测试后切换到 **prod 模式** 进行实盘交易
 
 ### API 认证
+
 默认使用 API Key 认证，请求头格式：
+
 ```
 X-API-Key: your-api-key
 ```
 
 dev 模式可用的 API Key（在 config.yml 中配置）：
+
 - `dev-api-key-001`
 - `dev-api-key-002`
 
@@ -511,6 +545,7 @@ Get-Content logs/error.log -Wait -Tail 50
 ```
 
 ### 扩展开发
+
 1. 在 `app/services/` 中添加新的业务服务
 2. 在 `app/models/` 中定义 Pydantic 数据模型
 3. 在 `app/routers/` 中添加 REST API 路由
@@ -524,12 +559,14 @@ Get-Content logs/error.log -Wait -Tail 50
 ## ⚠️ 注意事项
 
 ### 安全警告
+
 - ⚠️ **生产环境必须修改默认 API Key**
 - ⚠️ **prod 模式会真实下单，请谨慎使用**
 - ⚠️ **建议使用 HTTPS 和更严格的 CORS 配置**
 - ⚠️ **不要将包含真实账号密码的配置文件提交到 Git**
 
 ### 已知限制
+
 - **xtquant 仅支持 Windows 系统**
 - 需要 QMT 客户端正在运行（dev/prod 模式）
 - xtdata 连接有 5 秒超时限制
@@ -538,6 +575,7 @@ Get-Content logs/error.log -Wait -Tail 50
 - 单实例最大订阅数默认限制为 100
 
 ### 性能建议
+
 - ✅ 使用单例模式避免重复初始化
 - ✅ xtdata 连接成功后会复用
 - ✅ gRPC 使用连接池提升性能
@@ -552,29 +590,34 @@ Get-Content logs/error.log -Wait -Tail 50
 ## 🐛 故障排查
 
 ### 服务启动失败
+
 1. 检查 Python 版本 >= 3.10
 2. 确认所有依赖已安装: `pip install -r requirements.txt`
 3. 检查端口 8000 和 50051 是否被占用
 4. 查看启动日志: `logs/app.log`
 
 ### xtdata 连接失败
+
 1. 确认 QMT 客户端正在运行
 2. 检查 `config.yml` 中的 QMT 路径是否正确
 3. 查看错误日志: `logs/error.log`
 4. 尝试重启 QMT 客户端
 
 ### API 返回 401 错误
+
 1. 检查请求头是否包含 `X-API-Key: xxx`
 2. 确认 API Key 在 config.yml 的当前模式配置中
 3. 检查 API Key 是否正确
 
 ### gRPC 连接失败
+
 1. 确认 gRPC 服务已启动（查看启动日志）
 2. 检查端口 50051 是否被占用
 3. 确认客户端使用正确的地址: `localhost:50051`
 4. 检查防火墙设置
 
 ### WebSocket 无行情推送
+
 1. 使用 REST 接口确认订阅状态为 `active`
 2. 检查 WebSocket 是否按需发送 `ping` 保持心跳
 3. mock 模式下推送为模拟数据，若需真实行情请使用 dev/prod 模式
@@ -582,12 +625,14 @@ Get-Content logs/error.log -Wait -Tail 50
 5. 检查股票代码列表是否为空（已添加多层校验）
 
 ### gRPC 订阅报错
+
 1. 确认使用 mock 模式测试: `$env:APP_MODE="mock"`
 2. 检查是否传入空股票列表（会返回 INVALID_ARGUMENT）
 3. 查看是否有 RuntimeError 关于 asyncio.Queue（已修复）
 4. 检查复权参数是否正确: none/front/back
 
 ### 交易被拦截
+
 - 这是正常行为！dev 模式会拦截所有交易请求
 - 如需真实交易，切换到 prod 模式
 - 检查订单 ID 前缀区分模拟/真实订单
@@ -599,6 +644,7 @@ Get-Content logs/error.log -Wait -Tail 50
 欢迎提交 Issue 和 Pull Request！
 
 ### 开发环境设置
+
 ```bash
 # 克隆仓库
 git clone https://github.com/liqimore/quant-qmt-proxy.git
@@ -615,6 +661,7 @@ pytest tests/ -v
 ```
 
 ### 提交规范
+
 - `feat`: 新功能
 - `fix`: 修复 bug
 - `docs`: 文档更新

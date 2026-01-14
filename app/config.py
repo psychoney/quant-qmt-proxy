@@ -94,7 +94,17 @@ class CORSConfig(BaseModel):
 
 class UvicornConfig(BaseModel):
     """uvicorn配置"""
-    timeout_keep_alive: int = 5
+    timeout_keep_alive: int = 120  # 连接保持超时（秒），增大以支持长时间请求
+
+
+class RequestTimeoutConfig(BaseModel):
+    """请求超时配置"""
+    default: float = 30.0  # 默认请求超时（秒）
+    market_data: float = 60.0  # 市场数据请求超时
+    financial_data: float = 60.0  # 财务数据请求超时
+    download: float = 300.0  # 数据下载超时（5分钟）
+    trading: float = 30.0  # 交易相关请求超时
+    subscription: float = 60.0  # 订阅操作超时
 
 
 class Settings(BaseModel):
@@ -107,12 +117,13 @@ class Settings(BaseModel):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     cors: CORSConfig = Field(default_factory=CORSConfig)
     uvicorn: UvicornConfig = Field(default_factory=UvicornConfig)
-    
+    request_timeout: RequestTimeoutConfig = Field(default_factory=RequestTimeoutConfig)
+
     # gRPC 配置（使用属性访问以保持向后兼容）
     grpc_enabled: bool = True
     grpc_host: str = "0.0.0.0"
     grpc_port: int = 50051
-    grpc_max_workers: int = 10
+    grpc_max_workers: int = 50  # 增大线程池以支持更多并发请求
     grpc_max_message_length: int = 50 * 1024 * 1024  # 50MB
 
 
@@ -198,12 +209,20 @@ def load_config(config_file: Optional[str] = None) -> Settings:
                 "allow_headers": ["*"]
             }),
             "uvicorn": {
-                "timeout_keep_alive": config_data.get("uvicorn", {}).get("timeout_keep_alive", 5)
+                "timeout_keep_alive": config_data.get("uvicorn", {}).get("timeout_keep_alive", 120)
             },
+            "request_timeout": config_data.get("request_timeout", {
+                "default": 30.0,
+                "market_data": 60.0,
+                "financial_data": 60.0,
+                "download": 300.0,
+                "trading": 30.0,
+                "subscription": 60.0
+            }),
             "grpc_enabled": config_data.get("grpc", {}).get("enabled", True),
             "grpc_host": config_data.get("grpc", {}).get("host", "0.0.0.0"),
             "grpc_port": config_data.get("grpc", {}).get("port", 50051),
-            "grpc_max_workers": config_data.get("grpc", {}).get("max_workers", 10),
+            "grpc_max_workers": config_data.get("grpc", {}).get("max_workers", 50),
             "grpc_max_message_length": config_data.get("grpc", {}).get("max_message_length", 50 * 1024 * 1024),
         }
         

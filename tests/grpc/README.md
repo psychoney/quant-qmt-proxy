@@ -21,6 +21,7 @@ tests/grpc/
 ### 健康检查服务测试 (test_health_grpc_service.py)
 
 #### ✅ 已实现接口测试 (2个)
+
 1. **check_health()** - 健康检查
    - 全局健康检查
    - 特定服务健康检查
@@ -31,6 +32,7 @@ tests/grpc/
 ### 数据服务测试 (test_data_grpc_service.py)
 
 #### ✅ 已实现接口测试 (9个)
+
 1. **get_market_data()** - 获取行情数据
    - 单只股票查询
    - 多只股票批量查询
@@ -64,10 +66,12 @@ tests/grpc/
    - ETF基础信息查询
 
 #### 🔄 流式接口测试（未来实现）
+
 - **subscribe_market_data()** - 订阅实时行情（服务端流）
 - **unsubscribe_market_data()** - 取消订阅
 
 #### ⏳ 未实现接口占位
+
 - Level2数据接口
 - 数据下载接口
 - 板块管理接口
@@ -78,6 +82,7 @@ tests/grpc/
 ### 交易服务测试 (test_trading_grpc_service.py)
 
 #### ✅ 已实现接口测试 (6个)
+
 1. **connect()** - 连接交易账户
    - 成功连接测试
    - 无效凭证测试
@@ -110,10 +115,12 @@ tests/grpc/
    - 订单结构验证
 
 #### 🔄 流式接口测试（未来实现）
+
 - **submit_batch_orders()** - 批量提交订单（客户端流）
 - **subscribe_order_status()** - 订阅订单状态（双向流）
 
 #### ⏳ 未实现接口占位
+
 - 资产查询接口
 - 成交查询接口
 - 异步交易接口
@@ -128,16 +135,19 @@ tests/grpc/
 ### 前置条件
 
 1. **安装依赖**
+
    ```bash
    pip install pytest pytest-asyncio grpcio grpcio-tools protobuf
    ```
 
 2. **生成 protobuf 代码**
+
    ```bash
    python scripts/generate_proto.py
    ```
 
 3. **启动 gRPC 服务器**
+
    ```bash
    # 方式1: 仅 gRPC
    python run_grpc.py
@@ -225,9 +235,9 @@ def test_new_data_feature(self, data_stub):
         parameter1="value1",
         parameter2="value2"
     )
-    
+
     response = data_stub.NewFeature(request)
-    
+
     assert response.status.code == 0
     # 添加更多断言...
 ```
@@ -241,9 +251,9 @@ def test_new_trading_feature(self, trading_stub, test_session):
         session_id=test_session,
         parameter1="value1"
     )
-    
+
     response = trading_stub.NewFeature(request)
-    
+
     assert response.status.code == 0
     # 添加更多断言...
 ```
@@ -270,6 +280,7 @@ def test_future_feature(self):
 ```
 
 运行特定标记的测试：
+
 ```bash
 pytest tests/grpc/ -v -m "not slow"  # 跳过慢速测试
 pytest tests/grpc/ -v -m integration  # 只运行集成测试
@@ -300,6 +311,7 @@ def test_debug_example(self):
 ```
 
 然后运行：
+
 ```bash
 pytest tests/grpc/test_data_grpc_service.py::test_debug_example -v -s
 ```
@@ -326,14 +338,14 @@ pytest tests/grpc/ -v --junitxml=junit.xml
 
 ### 预期性能指标
 
-| 操作 | 目标延迟 | 说明 |
-|------|---------|------|
-| 单股行情查询 | < 50ms | 小数据量查询 |
-| 批量行情查询 | < 500ms | 50只股票 |
-| 财务数据查询 | < 200ms | 单只股票，多张表 |
-| 提交订单 | < 100ms | 单笔订单 |
-| 查询持仓 | < 50ms | 当前持仓 |
-| 查询订单 | < 100ms | 当日订单 |
+| 操作         | 目标延迟 | 说明             |
+| ------------ | -------- | ---------------- |
+| 单股行情查询 | < 50ms   | 小数据量查询     |
+| 批量行情查询 | < 500ms  | 50只股票         |
+| 财务数据查询 | < 200ms  | 单只股票，多张表 |
+| 提交订单     | < 100ms  | 单笔订单         |
+| 查询持仓     | < 50ms   | 当前持仓         |
+| 查询订单     | < 100ms  | 当日订单         |
 
 ### 运行性能基准测试
 
@@ -346,6 +358,7 @@ pytest tests/grpc/ -v -k "performance" --durations=10
 ### Q1: 测试失败提示 "grpc" 模块找不到
 
 **A:** 安装 gRPC 依赖：
+
 ```bash
 pip install grpcio grpcio-tools
 ```
@@ -353,6 +366,7 @@ pip install grpcio grpcio-tools
 ### Q2: 测试失败提示找不到 protobuf 模块
 
 **A:** 生成 protobuf 代码：
+
 ```bash
 python scripts/generate_proto.py
 ```
@@ -360,6 +374,7 @@ python scripts/generate_proto.py
 ### Q3: 连接超时
 
 **A:** 确保 gRPC 服务器已启动：
+
 ```bash
 python run_grpc.py
 ```

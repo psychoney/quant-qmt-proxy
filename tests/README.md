@@ -208,20 +208,20 @@ SKIP_INTEGRATION_TESTS = True
 
 ### REST API 测试
 
-| 类别 | 端点数 | 状态 |
-|------|--------|------|
-| 健康检查 | 5 | ✅ 完成 |
-| 数据服务 | 7 | ✅ 完成 |
-| 交易服务 | 11 | ✅ 完成 |
+| 类别     | 端点数 | 状态        |
+| -------- | ------ | ----------- |
+| 健康检查 | 5      | ✅ 完成     |
+| 数据服务 | 7      | ✅ 完成     |
+| 交易服务 | 11     | ✅ 完成     |
 | **总计** | **23** | **✅ 完成** |
 
 ### gRPC 测试
 
-| 类别 | 接口数 | 状态 |
-|------|--------|------|
-| 健康检查 | 2 | ✅ 完成 |
-| 数据服务 | 9 | ✅ 完成 |
-| 交易服务 | 7 | ✅ 完成 |
+| 类别     | 接口数 | 状态        |
+| -------- | ------ | ----------- |
+| 健康检查 | 2      | ✅ 完成     |
+| 数据服务 | 9      | ✅ 完成     |
+| 交易服务 | 7      | ✅ 完成     |
 | **总计** | **18** | **✅ 完成** |
 
 ## 📝 编写新测试
@@ -235,13 +235,13 @@ from tests.rest.client import RESTTestClient
 
 class TestExampleAPI:
     """示例 API 测试"""
-    
+
     @pytest.fixture
     def client(self, base_url: str, api_key: str):
         """创建测试客户端"""
         with RESTTestClient(base_url=base_url, api_key=api_key) as client:
             yield client
-    
+
     def test_example(self, client: RESTTestClient):
         """测试示例端点"""
         response = client.client.get("/api/v1/example")
@@ -258,13 +258,13 @@ from tests.grpc.client import GRPCTestClient
 
 class TestExampleGrpc:
     """示例 gRPC 测试"""
-    
+
     @pytest.fixture
     def client(self):
         """创建测试客户端"""
         with GRPCTestClient(host='localhost', port=50051) as client:
             yield client
-    
+
     def test_example(self, client: GRPCTestClient):
         """测试示例接口"""
         response = client.some_method()
@@ -276,6 +276,7 @@ class TestExampleGrpc:
 ### Q1: 测试失败提示连接超时
 
 **A:** 确保服务已启动：
+
 ```powershell
 # REST API
 python run.py
@@ -290,6 +291,7 @@ python run_hybrid.py
 ### Q2: 所有测试都被跳过
 
 **A:** 检查配置文件中的 `SKIP_INTEGRATION_TESTS` 设置：
+
 - `tests/rest/config.py`
 - `tests/grpc/config.py`
 
@@ -298,6 +300,7 @@ python run_hybrid.py
 ### Q3: gRPC 测试失败提示找不到模块
 
 **A:** 生成 protobuf 代码：
+
 ```powershell
 python scripts/generate_proto.py
 ```
@@ -318,28 +321,28 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v2
-    
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.10'
-    
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install pytest pytest-cov
-    
-    - name: Generate protobuf
-      run: python scripts/generate_proto.py
-    
-    - name: Run tests
-      run: pytest tests/ -v --cov=app --junitxml=junit.xml
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v2
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Generate protobuf
+        run: python scripts/generate_proto.py
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=app --junitxml=junit.xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v2
 ```
 
 ## 📚 相关文档
