@@ -1612,10 +1612,21 @@ class DataService:
 
             if self._should_use_real_data():
                 try:
-                    # L2 函数需要逐个股票调用，但参数必须是列表格式
+                    # L2 数据需要先订阅才能获取
                     for stock_code in stock_codes:
                         try:
-                            # xtdata.get_l2_quote 内部调用 get_market_data3，期望列表参数
+                            # 先订阅 L2 行情
+                            xtdata.subscribe_quote(stock_code, period='l2quote', count=-1)
+                        except Exception as e:
+                            logger.warning(f"订阅 {stock_code} L2行情失败: {e}")
+
+                    # 等待订阅生效
+                    import time
+                    time.sleep(0.1)
+
+                    # 获取 L2 数据
+                    for stock_code in stock_codes:
+                        try:
                             data = xtdata.get_l2_quote([stock_code])
 
                             if not data:
@@ -1680,10 +1691,21 @@ class DataService:
 
             if self._should_use_real_data():
                 try:
-                    # L2 函数需要逐个股票调用，但参数必须是列表格式
+                    # L2 数据需要先订阅才能获取
                     for stock_code in stock_codes:
                         try:
-                            # xtdata.get_l2_order 内部调用 get_market_data3，期望列表参数
+                            # 先订阅 L2 逐笔委托
+                            xtdata.subscribe_quote(stock_code, period='l2order', count=-1)
+                        except Exception as e:
+                            logger.warning(f"订阅 {stock_code} L2委托失败: {e}")
+
+                    # 等待订阅生效
+                    import time
+                    time.sleep(0.1)
+
+                    # 获取 L2 委托数据
+                    for stock_code in stock_codes:
+                        try:
                             data = xtdata.get_l2_order([stock_code])
 
                             if not data:
@@ -1740,10 +1762,21 @@ class DataService:
 
             if self._should_use_real_data():
                 try:
-                    # L2 函数需要逐个股票调用，但参数必须是列表格式
+                    # L2 数据需要先订阅才能获取
                     for stock_code in stock_codes:
                         try:
-                            # xtdata.get_l2_transaction 内部调用 get_market_data3，期望列表参数
+                            # 先订阅 L2 逐笔成交
+                            xtdata.subscribe_quote(stock_code, period='l2transaction', count=-1)
+                        except Exception as e:
+                            logger.warning(f"订阅 {stock_code} L2成交失败: {e}")
+
+                    # 等待订阅生效
+                    import time
+                    time.sleep(0.1)
+
+                    # 获取 L2 成交数据
+                    for stock_code in stock_codes:
+                        try:
                             data = xtdata.get_l2_transaction([stock_code])
 
                             if not data:
