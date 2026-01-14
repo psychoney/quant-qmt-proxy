@@ -1607,19 +1607,23 @@ class DataService:
         try:
             results = {}
 
+            if not stock_codes:
+                return results
+
             if self._should_use_real_data():
                 try:
-                    # L2 函数需要逐个股票调用
+                    # L2 函数需要逐个股票调用，但参数必须是列表格式
                     for stock_code in stock_codes:
                         try:
-                            data = xtdata.get_l2_quote(stock_code)
+                            # xtdata.get_l2_quote 内部调用 get_market_data3，期望列表参数
+                            data = xtdata.get_l2_quote([stock_code])
 
                             if not data:
                                 logger.warning(f"未获取到 {stock_code} 的Level2数据")
                                 continue
 
-                            # 返回格式可能是 dict 或直接是数据
-                            quote = data.get(stock_code, data) if isinstance(data, dict) else data
+                            # 返回格式是 {stock_code: quote_data}
+                            quote = data.get(stock_code)
 
                             if quote:
                                 results[stock_code] = L2QuoteData(
@@ -1671,19 +1675,23 @@ class DataService:
         try:
             results = {}
 
+            if not stock_codes:
+                return results
+
             if self._should_use_real_data():
                 try:
-                    # L2 函数需要逐个股票调用
+                    # L2 函数需要逐个股票调用，但参数必须是列表格式
                     for stock_code in stock_codes:
                         try:
-                            data = xtdata.get_l2_order(stock_code)
+                            # xtdata.get_l2_order 内部调用 get_market_data3，期望列表参数
+                            data = xtdata.get_l2_order([stock_code])
 
                             if not data:
                                 logger.warning(f"未获取到 {stock_code} 的Level2委托数据")
                                 continue
 
-                            # 返回格式可能是 dict 或直接是列表
-                            orders = data.get(stock_code, data) if isinstance(data, dict) else data
+                            # 返回格式是 {stock_code: order_list}
+                            orders = data.get(stock_code)
                             order_list = []
 
                             if orders and hasattr(orders, '__iter__'):
@@ -1727,19 +1735,23 @@ class DataService:
         try:
             results = {}
 
+            if not stock_codes:
+                return results
+
             if self._should_use_real_data():
                 try:
-                    # L2 函数需要逐个股票调用
+                    # L2 函数需要逐个股票调用，但参数必须是列表格式
                     for stock_code in stock_codes:
                         try:
-                            data = xtdata.get_l2_transaction(stock_code)
+                            # xtdata.get_l2_transaction 内部调用 get_market_data3，期望列表参数
+                            data = xtdata.get_l2_transaction([stock_code])
 
                             if not data:
                                 logger.warning(f"未获取到 {stock_code} 的Level2成交数据")
                                 continue
 
-                            # 返回格式可能是 dict 或直接是列表
-                            transactions = data.get(stock_code, data) if isinstance(data, dict) else data
+                            # 返回格式是 {stock_code: transaction_list}
+                            transactions = data.get(stock_code)
                             trans_list = []
 
                             if transactions and hasattr(transactions, '__iter__'):
