@@ -1612,13 +1612,22 @@ class DataService:
 
             if self._should_use_real_data():
                 try:
+                    has_permission = True
                     # L2 数据需要先订阅才能获取
                     for stock_code in stock_codes:
                         try:
                             # 先订阅 L2 行情
                             xtdata.subscribe_quote(stock_code, period='l2quote', count=-1)
                         except Exception as e:
-                            logger.warning(f"订阅 {stock_code} L2行情失败: {e}")
+                            error_msg = str(e)
+                            if 'no level2 permission' in error_msg:
+                                has_permission = False
+                                logger.warning(f"无L2权限，无法订阅 {stock_code}: {e}")
+                            else:
+                                logger.warning(f"订阅 {stock_code} L2行情失败: {e}")
+
+                    if not has_permission:
+                        raise DataServiceException("无Level2数据权限，请联系券商开通L2行情权限")
 
                     # 等待订阅生效
                     import time
@@ -1662,6 +1671,8 @@ class DataService:
                             logger.warning(f"获取 {stock_code} 的Level2快照失败: {e}")
                             continue
                     return results
+                except DataServiceException:
+                    raise
                 except Exception as e:
                     logger.error(f"获取Level2快照失败: {e}")
                     raise DataServiceException(f"获取Level2快照失败: {str(e)}")
@@ -1691,13 +1702,22 @@ class DataService:
 
             if self._should_use_real_data():
                 try:
+                    has_permission = True
                     # L2 数据需要先订阅才能获取
                     for stock_code in stock_codes:
                         try:
                             # 先订阅 L2 逐笔委托
                             xtdata.subscribe_quote(stock_code, period='l2order', count=-1)
                         except Exception as e:
-                            logger.warning(f"订阅 {stock_code} L2委托失败: {e}")
+                            error_msg = str(e)
+                            if 'no level2 permission' in error_msg:
+                                has_permission = False
+                                logger.warning(f"无L2权限，无法订阅 {stock_code}: {e}")
+                            else:
+                                logger.warning(f"订阅 {stock_code} L2委托失败: {e}")
+
+                    if not has_permission:
+                        raise DataServiceException("无Level2数据权限，请联系券商开通L2行情权限")
 
                     # 等待订阅生效
                     import time
@@ -1732,6 +1752,8 @@ class DataService:
                             logger.warning(f"获取 {stock_code} 的Level2委托失败: {e}")
                             continue
                     return results
+                except DataServiceException:
+                    raise
                 except Exception as e:
                     logger.error(f"获取Level2逐笔委托失败: {e}")
                     raise DataServiceException(f"获取Level2委托失败: {str(e)}")
@@ -1762,13 +1784,22 @@ class DataService:
 
             if self._should_use_real_data():
                 try:
+                    has_permission = True
                     # L2 数据需要先订阅才能获取
                     for stock_code in stock_codes:
                         try:
                             # 先订阅 L2 逐笔成交
                             xtdata.subscribe_quote(stock_code, period='l2transaction', count=-1)
                         except Exception as e:
-                            logger.warning(f"订阅 {stock_code} L2成交失败: {e}")
+                            error_msg = str(e)
+                            if 'no level2 permission' in error_msg:
+                                has_permission = False
+                                logger.warning(f"无L2权限，无法订阅 {stock_code}: {e}")
+                            else:
+                                logger.warning(f"订阅 {stock_code} L2成交失败: {e}")
+
+                    if not has_permission:
+                        raise DataServiceException("无Level2数据权限，请联系券商开通L2行情权限")
 
                     # 等待订阅生效
                     import time
@@ -1806,6 +1837,8 @@ class DataService:
                             logger.warning(f"获取 {stock_code} 的Level2成交失败: {e}")
                             continue
                     return results
+                except DataServiceException:
+                    raise
                 except Exception as e:
                     logger.error(f"获取Level2逐笔成交失败: {e}")
                     raise DataServiceException(f"获取Level2成交失败: {str(e)}")
