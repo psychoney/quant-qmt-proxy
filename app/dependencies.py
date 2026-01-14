@@ -23,6 +23,7 @@ security = HTTPBearer(auto_error=False)
 _data_service_instance = None
 _trading_service_instance = None
 _subscription_manager_instance = None
+_trading_callback_manager_instance = None
 
 
 def get_data_service(settings: Settings = Depends(get_settings)):
@@ -52,13 +53,25 @@ def get_trading_service(settings: Settings = Depends(get_settings)):
 def get_subscription_manager(settings: Settings = Depends(get_settings)):
     """获取SubscriptionManager单例实例"""
     global _subscription_manager_instance
-    
+
     if _subscription_manager_instance is None:
         from app.services.subscription_manager import SubscriptionManager
         logger.info("初始化 SubscriptionManager...")
         _subscription_manager_instance = SubscriptionManager(settings)
-    
+
     return _subscription_manager_instance
+
+
+def get_trading_callback_manager(settings: Settings = Depends(get_settings)):
+    """获取TradingCallbackManager单例实例"""
+    global _trading_callback_manager_instance
+
+    if _trading_callback_manager_instance is None:
+        from app.services.trading_callback_manager import get_trading_callback_manager as _get_manager
+        logger.info("初始化 TradingCallbackManager...")
+        _trading_callback_manager_instance = _get_manager(settings)
+
+    return _trading_callback_manager_instance
 
 
 async def get_api_key(

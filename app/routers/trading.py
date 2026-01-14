@@ -13,6 +13,10 @@ from app.dependencies import get_trading_service, verify_api_key
 from app.models.trading_models import (
     AccountInfo,
     AssetInfo,
+    AsyncCancelRequest,
+    AsyncCancelResponse,
+    AsyncOrderRequest,
+    AsyncOrderResponse,
     CancelOrderRequest,
     ConnectRequest,
     ConnectResponse,
@@ -337,4 +341,68 @@ async def get_connection_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"message": f"查询连接状态失败: {str(e)}"}
+        )
+
+
+# ==================== 异步交易接口 ====================
+
+@router.post("/order-async/{session_id}", response_model=AsyncOrderResponse)
+async def submit_order_async(
+    session_id: str,
+    request: AsyncOrderRequest,
+    api_key: str = Depends(verify_api_key),
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    异步提交订单
+
+    异步下单后立即返回，订单结果通过 WebSocket 回调推送。
+    返回的 seq 字段用于匹配回调中的订单。
+    """
+    try:
+        result = await run_sync(
+            trading_service.submit_order_async, session_id, request,
+            timeout=settings.request_timeout.trading
+        )
+        return result
+    except TradingServiceException as e:
+        raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": f"异步下单失败: {str(e)}"}
+        )
+
+
+@router.post("/cancel-async/{session_id}", response_model=AsyncCancelResponse)
+async def cancel_order_async(
+    session_id: str,
+    request: AsyncCancelRequest,
+    api_key: str = Depends(verify_api_key),
+    trading_service: TradingService = Depends(get_trading_service),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    异步撤销订单
+
+    异步撤单后立即返回，撤单结果通过 WebSocket 回调推送。
+    可以使用 order_id 或 order_sysid 撤单（二选一）。
+    """
+    try:
+        result = await run_sync(
+            trading_service.cancel_order_async, session_id, request,
+            timeout=settings.request_timeout.trading
+        )
+        return result
+    except TradingServiceException as e:
+        raise handle_xtquant_exception(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": f"异步撤单失败: {str(e)}"}
         )

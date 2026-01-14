@@ -2,10 +2,13 @@
 gRPC 交易服务实现
 """
 from datetime import datetime
+from typing import Iterator
 
 import grpc
 
 from app.models.trading_models import AccountType as RestAccountType
+from app.models.trading_models import AsyncCancelRequest as RestAsyncCancelRequest
+from app.models.trading_models import AsyncOrderRequest as RestAsyncOrderRequest
 from app.models.trading_models import CancelOrderRequest as RestCancelOrderRequest
 from app.models.trading_models import ConnectRequest as RestConnectRequest
 from app.models.trading_models import OrderRequest as RestOrderRequest
@@ -14,7 +17,9 @@ from app.models.trading_models import OrderType as RestOrderType
 
 # 导入现有服务
 from app.services.trading_service import TradingService
+from app.services.trading_callback_manager import get_trading_callback_manager
 from app.utils.exceptions import TradingServiceException
+from app.utils.logger import logger
 
 # 导入生成的 protobuf 代码
 from generated import common_pb2, trading_pb2, trading_pb2_grpc
@@ -540,3 +545,302 @@ class TradingGrpcService(trading_pb2_grpc.TradingServiceServicer):
             filled_amount=order_response.filled_amount,
             average_price=order_response.average_price if order_response.average_price else 0.0
         )
+
+    # ==================== 异步交易接口 ====================
+
+    def SubmitOrderAsync(
+        self,
+        request: trading_pb2.AsyncOrderRequest,
+        context: grpc.ServicerContext
+    ) -> trading_pb2.AsyncOrderResponse:
+        """异步提交订单"""
+        try:
+            # 转换请求
+            side_map = {
+                trading_pb2.ORDER_SIDE_BUY: RestOrderSide.BUY,
+                trading_pb2.ORDER_SIDE_SELL: RestOrderSide.SELL
+            }
+
+            type_map = {
+                trading_pb2.ORDER_TYPE_MARKET: RestOrderType.MARKET,
+                trading_pb2.ORDER_TYPE_LIMIT: RestOrderType.LIMIT,
+                trading_pb2.ORDER_TYPE_STOP: RestOrderType.STOP,
+                trading_pb2.ORDER_TYPE_STOP_LIMIT: RestOrderType.STOP_LIMIT
+            }
+
+            rest_request = RestAsyncOrderRequest(
+                stock_code=request.stock_code,
+                side=side_map.get(request.side, RestOrderSide.BUY),
+                order_type=type_map.get(request.order_type, RestOrderType.LIMIT),
+                volume=int(request.volume),
+                price=request.price if request.price else None,
+                strategy_name=request.strategy_name if request.strategy_name else None
+            )
+
+            # 调用服务
+            result = self.trading_service.submit_order_async(request.session_id, rest_request)
+
+            return trading_pb2.AsyncOrderResponse(
+                success=result.success,
+                message=result.message,
+                seq=result.seq or 0,
+                stock_code=result.stock_code or "",
+                side=result.side or "",
+                volume=result.volume or 0,
+                price=result.price or 0.0,
+                status=common_pb2.Status(code=0 if result.success else 400, message=result.message)
+            )
+
+        except TradingServiceException as e:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details(str(e))
+            return trading_pb2.AsyncOrderResponse(
+                success=False,
+                message=str(e),
+                status=common_pb2.Status(code=400, message=str(e))
+            )
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return trading_pb2.AsyncOrderResponse(
+                success=False,
+                message=str(e),
+                status=common_pb2.Status(code=500, message=str(e))
+            )
+
+    def CancelOrderAsync(
+        self,
+        request: trading_pb2.AsyncCancelRequest,
+        context: grpc.ServicerContext
+    ) -> trading_pb2.AsyncCancelResponse:
+        """异步撤销订单"""
+        try:
+            # 转换请求
+            rest_request = RestAsyncCancelRequest(
+                order_id=request.order_id if request.order_id else None,
+                order_sysid=request.order_sysid if request.order_sysid else None
+            )
+
+            # 调用服务
+            result = self.trading_service.cancel_order_async(request.session_id, rest_request)
+
+            return trading_pb2.AsyncCancelResponse(
+                success=result.success,
+                message=result.message,
+                seq=result.seq or 0,
+                order_id=result.order_id or "",
+                status=common_pb2.Status(code=0 if result.success else 400, message=result.message)
+            )
+
+        except TradingServiceException as e:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details(str(e))
+            return trading_pb2.AsyncCancelResponse(
+                success=False,
+                message=str(e),
+                status=common_pb2.Status(code=400, message=str(e))
+            )
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return trading_pb2.AsyncCancelResponse(
+                success=False,
+                message=str(e),
+                status=common_pb2.Status(code=500, message=str(e))
+            )
+
+    def StreamTradingCallbacks(
+        self,
+        request: trading_pb2.TradingCallbackRequest,
+        context: grpc.ServicerContext
+    ) -> Iterator[trading_pb2.TradingCallbackMessage]:
+        """
+        订阅交易回调流（服务端流）
+
+        注意：gRPC 流是同步的，需要特殊处理来桥接异步回调
+        """
+        try:
+            from app.config import get_settings
+            import asyncio
+            import threading
+            import queue
+
+            settings = get_settings()
+            callback_manager = get_trading_callback_manager(settings)
+            account_id = request.account_id if request.account_id else None
+
+            # 使用队列在异步回调和同步 gRPC 流之间传递数据
+            sync_queue = queue.Queue(maxsize=1000)
+            stop_event = threading.Event()
+
+            # 回调类型映射
+            callback_type_map = {
+                "connected": trading_pb2.CALLBACK_TYPE_CONNECTED,
+                "disconnected": trading_pb2.CALLBACK_TYPE_DISCONNECTED,
+                "account_status": trading_pb2.CALLBACK_TYPE_ACCOUNT_STATUS,
+                "asset": trading_pb2.CALLBACK_TYPE_ASSET,
+                "order": trading_pb2.CALLBACK_TYPE_ORDER,
+                "trade": trading_pb2.CALLBACK_TYPE_TRADE,
+                "position": trading_pb2.CALLBACK_TYPE_POSITION,
+                "order_error": trading_pb2.CALLBACK_TYPE_ORDER_ERROR,
+                "cancel_error": trading_pb2.CALLBACK_TYPE_CANCEL_ERROR,
+                "async_order": trading_pb2.CALLBACK_TYPE_ASYNC_ORDER,
+                "async_cancel": trading_pb2.CALLBACK_TYPE_ASYNC_CANCEL,
+                "heartbeat": trading_pb2.CALLBACK_TYPE_HEARTBEAT,
+            }
+
+            async def async_consumer():
+                """异步消费回调并放入同步队列"""
+                try:
+                    async for callback_data in callback_manager.stream_callbacks(account_id):
+                        if stop_event.is_set():
+                            break
+                        try:
+                            sync_queue.put_nowait(callback_data)
+                        except queue.Full:
+                            # 队列满时丢弃旧数据
+                            try:
+                                sync_queue.get_nowait()
+                                sync_queue.put_nowait(callback_data)
+                            except Exception:
+                                pass
+                except Exception as e:
+                    logger.error(f"gRPC 回调流异步消费异常: {e}")
+                finally:
+                    sync_queue.put(None)  # 发送结束信号
+
+            def run_async_consumer():
+                """在新线程中运行异步消费者"""
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(async_consumer())
+                finally:
+                    loop.close()
+
+            # 启动异步消费者线程
+            consumer_thread = threading.Thread(target=run_async_consumer, daemon=True)
+            consumer_thread.start()
+
+            logger.info(f"gRPC 交易回调流已启动: account_id={account_id}")
+
+            # 从同步队列中读取并生成响应
+            while not context.is_active() == False:
+                try:
+                    callback_data = sync_queue.get(timeout=30.0)
+
+                    if callback_data is None:
+                        break
+
+                    # 心跳消息
+                    if callback_data.get("callback_type") == "heartbeat":
+                        yield trading_pb2.TradingCallbackMessage(
+                            callback_type=trading_pb2.CALLBACK_TYPE_HEARTBEAT,
+                            account_id="",
+                            timestamp=callback_data.get("timestamp", datetime.now().isoformat()),
+                            seq=0
+                        )
+                        continue
+
+                    # 转换回调消息
+                    cb_type_str = callback_data.get("callback_type", "")
+                    cb_type = callback_type_map.get(cb_type_str, trading_pb2.CALLBACK_TYPE_UNSPECIFIED)
+
+                    message = trading_pb2.TradingCallbackMessage(
+                        callback_type=cb_type,
+                        account_id=callback_data.get("account_id", ""),
+                        timestamp=callback_data.get("timestamp", datetime.now().isoformat()),
+                        seq=callback_data.get("seq", 0) or 0
+                    )
+
+                    # 根据回调类型设置对应的数据字段
+                    data = callback_data.get("data", {})
+
+                    if cb_type == trading_pb2.CALLBACK_TYPE_ORDER:
+                        message.order_data.CopyFrom(trading_pb2.OrderCallbackData(
+                            order_id=str(data.get("order_id", "")),
+                            order_sysid=str(data.get("order_sysid", "") or ""),
+                            stock_code=data.get("stock_code", ""),
+                            stock_name=data.get("stock_name", "") or "",
+                            side=data.get("side", ""),
+                            order_type=data.get("order_type", ""),
+                            volume=data.get("volume", 0),
+                            price=data.get("price", 0.0),
+                            status=data.get("status", ""),
+                            status_msg=data.get("status_msg", "") or "",
+                            filled_volume=data.get("filled_volume", 0),
+                            filled_amount=data.get("filled_amount", 0.0),
+                            order_time=str(data.get("order_time", "") or "")
+                        ))
+                    elif cb_type == trading_pb2.CALLBACK_TYPE_TRADE:
+                        message.trade_data.CopyFrom(trading_pb2.TradeCallbackData(
+                            trade_id=str(data.get("trade_id", "")),
+                            order_id=str(data.get("order_id", "")),
+                            order_sysid=str(data.get("order_sysid", "") or ""),
+                            stock_code=data.get("stock_code", ""),
+                            stock_name=data.get("stock_name", "") or "",
+                            side=data.get("side", ""),
+                            volume=data.get("volume", 0),
+                            price=data.get("price", 0.0),
+                            amount=data.get("amount", 0.0),
+                            trade_time=str(data.get("trade_time", "") or ""),
+                            commission=data.get("commission", 0.0)
+                        ))
+                    elif cb_type == trading_pb2.CALLBACK_TYPE_POSITION:
+                        message.position_data.CopyFrom(trading_pb2.PositionCallbackData(
+                            stock_code=data.get("stock_code", ""),
+                            stock_name=data.get("stock_name", "") or "",
+                            volume=data.get("volume", 0),
+                            available_volume=data.get("available_volume", 0),
+                            frozen_volume=data.get("frozen_volume", 0),
+                            cost_price=data.get("cost_price", 0.0),
+                            market_price=data.get("market_price", 0.0),
+                            market_value=data.get("market_value", 0.0),
+                            profit_loss=data.get("profit_loss", 0.0)
+                        ))
+                    elif cb_type == trading_pb2.CALLBACK_TYPE_ASSET:
+                        message.asset_data.CopyFrom(trading_pb2.AssetCallbackData(
+                            total_asset=data.get("total_asset", 0.0),
+                            market_value=data.get("market_value", 0.0),
+                            cash=data.get("cash", 0.0),
+                            frozen_cash=data.get("frozen_cash", 0.0),
+                            available_cash=data.get("available_cash", 0.0)
+                        ))
+                    elif cb_type in [trading_pb2.CALLBACK_TYPE_ORDER_ERROR, trading_pb2.CALLBACK_TYPE_CANCEL_ERROR]:
+                        message.error_data.CopyFrom(trading_pb2.ErrorCallbackData(
+                            error_code=str(data.get("error_code", "")),
+                            error_msg=data.get("error_msg", "") or str(data),
+                            order_id=str(data.get("order_id", "") or "")
+                        ))
+                    elif cb_type == trading_pb2.CALLBACK_TYPE_ASYNC_ORDER:
+                        message.async_order_data.CopyFrom(trading_pb2.AsyncOrderCallbackData(
+                            seq=data.get("seq", 0) or 0,
+                            order_id=str(data.get("order_id", "") or ""),
+                            error_msg=data.get("error_msg", "") or ""
+                        ))
+                    elif cb_type == trading_pb2.CALLBACK_TYPE_ASYNC_CANCEL:
+                        message.async_cancel_data.CopyFrom(trading_pb2.AsyncCancelCallbackData(
+                            seq=data.get("seq", 0) or 0,
+                            order_id=str(data.get("order_id", "") or ""),
+                            error_msg=data.get("error_msg", "") or ""
+                        ))
+
+                    yield message
+
+                except queue.Empty:
+                    # 超时，发送心跳
+                    yield trading_pb2.TradingCallbackMessage(
+                        callback_type=trading_pb2.CALLBACK_TYPE_HEARTBEAT,
+                        account_id="",
+                        timestamp=datetime.now().isoformat(),
+                        seq=0
+                    )
+
+            # 清理
+            stop_event.set()
+            logger.info(f"gRPC 交易回调流已关闭: account_id={account_id}")
+
+        except Exception as e:
+            logger.error(f"gRPC 交易回调流异常: {e}", exc_info=True)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))

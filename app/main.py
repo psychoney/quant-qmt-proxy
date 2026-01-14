@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
     # 初始化订阅管理器并设置事件循环
     import asyncio
 
-    from app.dependencies import get_subscription_manager
+    from app.dependencies import get_subscription_manager, get_trading_callback_manager
 
     try:
         loop = asyncio.get_running_loop()
@@ -111,6 +111,14 @@ async def lifespan(app: FastAPI):
         logger.info("订阅管理器已初始化")
     except Exception as e:
         logger.warning(f"订阅管理器初始化失败: {e}")
+
+    # 初始化交易回调管理器并设置事件循环
+    try:
+        trading_callback_manager = get_trading_callback_manager(settings)
+        trading_callback_manager.set_event_loop(loop)
+        logger.info("交易回调管理器已初始化")
+    except Exception as e:
+        logger.warning(f"交易回调管理器初始化失败: {e}")
 
     logger.info("REST API 服务已就绪")
 
@@ -134,6 +142,14 @@ async def lifespan(app: FastAPI):
         logger.info("订阅管理器已关闭")
     except Exception as e:
         logger.error(f"关闭订阅管理器失败: {e}")
+
+    # 关闭交易回调管理器
+    try:
+        trading_callback_manager = get_trading_callback_manager(settings)
+        trading_callback_manager.stop()
+        logger.info("交易回调管理器已关闭")
+    except Exception as e:
+        logger.error(f"关闭交易回调管理器失败: {e}")
 
 
 # 创建FastAPI应用

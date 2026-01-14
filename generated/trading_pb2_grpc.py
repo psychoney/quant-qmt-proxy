@@ -91,6 +91,21 @@ class TradingServiceStub(object):
                 request_serializer=trading__pb2.StrategyListRequest.SerializeToString,
                 response_deserializer=trading__pb2.StrategyListResponse.FromString,
                 _registered_method=True)
+        self.SubmitOrderAsync = channel.unary_unary(
+                '/qmt.trading.TradingService/SubmitOrderAsync',
+                request_serializer=trading__pb2.AsyncOrderRequest.SerializeToString,
+                response_deserializer=trading__pb2.AsyncOrderResponse.FromString,
+                _registered_method=True)
+        self.CancelOrderAsync = channel.unary_unary(
+                '/qmt.trading.TradingService/CancelOrderAsync',
+                request_serializer=trading__pb2.AsyncCancelRequest.SerializeToString,
+                response_deserializer=trading__pb2.AsyncCancelResponse.FromString,
+                _registered_method=True)
+        self.StreamTradingCallbacks = channel.unary_stream(
+                '/qmt.trading.TradingService/StreamTradingCallbacks',
+                request_serializer=trading__pb2.TradingCallbackRequest.SerializeToString,
+                response_deserializer=trading__pb2.TradingCallbackMessage.FromString,
+                _registered_method=True)
 
 
 class TradingServiceServicer(object):
@@ -175,6 +190,29 @@ class TradingServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SubmitOrderAsync(self, request, context):
+        """==================== 异步交易接口 ====================
+
+        异步提交订单（一元调用，结果通过回调流返回）
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CancelOrderAsync(self, request, context):
+        """异步撤销订单（一元调用，结果通过回调流返回）
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def StreamTradingCallbacks(self, request, context):
+        """订阅交易回调流（服务端流）
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_TradingServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -232,6 +270,21 @@ def add_TradingServiceServicer_to_server(servicer, server):
                     servicer.GetStrategies,
                     request_deserializer=trading__pb2.StrategyListRequest.FromString,
                     response_serializer=trading__pb2.StrategyListResponse.SerializeToString,
+            ),
+            'SubmitOrderAsync': grpc.unary_unary_rpc_method_handler(
+                    servicer.SubmitOrderAsync,
+                    request_deserializer=trading__pb2.AsyncOrderRequest.FromString,
+                    response_serializer=trading__pb2.AsyncOrderResponse.SerializeToString,
+            ),
+            'CancelOrderAsync': grpc.unary_unary_rpc_method_handler(
+                    servicer.CancelOrderAsync,
+                    request_deserializer=trading__pb2.AsyncCancelRequest.FromString,
+                    response_serializer=trading__pb2.AsyncCancelResponse.SerializeToString,
+            ),
+            'StreamTradingCallbacks': grpc.unary_stream_rpc_method_handler(
+                    servicer.StreamTradingCallbacks,
+                    request_deserializer=trading__pb2.TradingCallbackRequest.FromString,
+                    response_serializer=trading__pb2.TradingCallbackMessage.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -533,6 +586,87 @@ class TradingService(object):
             '/qmt.trading.TradingService/GetStrategies',
             trading__pb2.StrategyListRequest.SerializeToString,
             trading__pb2.StrategyListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SubmitOrderAsync(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/qmt.trading.TradingService/SubmitOrderAsync',
+            trading__pb2.AsyncOrderRequest.SerializeToString,
+            trading__pb2.AsyncOrderResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CancelOrderAsync(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/qmt.trading.TradingService/CancelOrderAsync',
+            trading__pb2.AsyncCancelRequest.SerializeToString,
+            trading__pb2.AsyncCancelResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def StreamTradingCallbacks(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/qmt.trading.TradingService/StreamTradingCallbacks',
+            trading__pb2.TradingCallbackRequest.SerializeToString,
+            trading__pb2.TradingCallbackMessage.FromString,
             options,
             channel_credentials,
             insecure,

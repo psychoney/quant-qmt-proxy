@@ -3,6 +3,7 @@
 
 测试所有交易服务相关的 API 端点
 """
+import json
 
 import pytest
 import httpx
@@ -270,46 +271,179 @@ class TestTradingAPIPerformance:
 @pytest.mark.integration
 class TestTradingAPIIntegration:
     """交易服务接口集成测试"""
-    
+
     def test_complete_trading_workflow(self, http_client: httpx.Client):
         """测试完整的交易工作流（不包含下单）"""
         from tests.rest.config import TEST_ACCOUNT_ID, TEST_ACCOUNT_PASSWORD, TEST_ACCOUNT_TYPE
-        
+
         # 1. 连接账户
         connect_data = {
             "account_id": TEST_ACCOUNT_ID,
             "password": TEST_ACCOUNT_PASSWORD,
             "account_type": TEST_ACCOUNT_TYPE
         }
-        
+
         connect_response = http_client.post("/api/v1/trading/connect", json=connect_data)
         assert connect_response.status_code == 200
-        
+
         connect_result = connect_response.json()
         session_id = connect_result.get("session_id", "test_session")
-        
+
         try:
             # 2. 获取账户信息
             account_response = http_client.get(f"/api/v1/trading/account/{session_id}")
             assert account_response.status_code == 200
-            
+
             # 3. 获取持仓
             positions_response = http_client.get(f"/api/v1/trading/positions/{session_id}")
             assert positions_response.status_code == 200
-            
+
             # 4. 获取资产
             asset_response = http_client.get(f"/api/v1/trading/asset/{session_id}")
             assert asset_response.status_code == 200
-            
+
             # 5. 获取订单
             orders_response = http_client.get(f"/api/v1/trading/orders/{session_id}")
             assert orders_response.status_code == 200
-            
+
             # 6. 获取成交
             trades_response = http_client.get(f"/api/v1/trading/trades/{session_id}")
             assert trades_response.status_code == 200
-            
+
         finally:
             # 7. 断开连接
             disconnect_response = http_client.post(f"/api/v1/trading/disconnect/{session_id}")
             assert disconnect_response.status_code == 200
+
+
+# ==================== 异步交易接口测试 ====================
+
+class TestAsyncTradingAPI:
+    """异步交易接口测试类"""
+
+    @pytest.mark.skip(reason="异步下单测试可能影响真实账户，默认跳过")
+    def test_submit_order_async(self, http_client: httpx.Client, test_session: str):
+        """测试异步提交订单"""
+        data = {
+            "stock_code": "000001.SZ",
+            "side": "BUY",
+            "volume": 100,
+            "price": 13.50,
+            "order_type": "LIMIT"
+        }
+
+        response = http_client.post(f"/api/v1/trading/order-async/{test_session}", json=data)
+        assert response.status_code == 200
+
+        result = response.json()
+        assert "success" in result
+        assert "seq" in result  # 异步请求序号
+        assert result["success"] is True
+
+    @pytest.mark.skip(reason="异步撤单测试需要真实订单ID，默认跳过")
+    def test_cancel_order_async(self, http_client: httpx.Client, test_session: str):
+        """测试异步撤销订单"""
+        data = {"order_id": "order_1000"}
+
+        response = http_client.post(f"/api/v1/trading/cancel-async/{test_session}", json=data)
+        assert response.status_code == 200
+
+        result = response.json()
+        assert "success" in result
+        assert "seq" in result
+
+    def test_async_order_invalid_session(self, http_client: httpx.Client):
+        """测试无效 session 的异步下单"""
+        data = {
+            "stock_code": "000001.SZ",
+            "side": "BUY",
+            "volume": 100,
+            "price": 13.50,
+            "order_type": "LIMIT"
+        }
+
+        response = http_client.post("/api/v1/trading/order-async/invalid_session", json=data)
+        # 应该返回错误（账户未连接）
+        assert response.status_code in [400, 500]
+
+    def test_async_cancel_invalid_session(self, http_client: httpx.Client):
+        """测试无效 session 的异步撤单"""
+        data = {"order_id": "order_1000"}
+
+        response = http_client.post("/api/v1/trading/cancel-async/invalid_session", json=data)
+        # 应该返回错误（账户未连接）
+        assert response.status_code in [400, 500]
+
+
+class TestAsyncTradingAPIWithClient:
+    """使用封装客户端的异步交易测试"""
+
+    @pytest.fixture
+    def client(self, base_url: str, api_key: str):
+        """创建测试客户端"""
+        with RESTTestClient(base_url=base_url, api_key=api_key) as client:
+            yield client
+
+    @pytest.mark.skip(reason="异步下单测试可能影响真实账户，默认跳过")
+    def test_async_order_with_client(self, client: RESTTestClient, test_session: str):
+        """使用客户端测试异步下单"""
+        data = {
+            "stock_code": "000001.SZ",
+            "side": "BUY",
+            "volume": 100,
+            "price": 13.50,
+            "order_type": "LIMIT"
+        }
+
+        response = client.http_client.post(f"/api/v1/trading/order-async/{test_session}", json=data)
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result.get("success") is True
+        assert "seq" in result
+
+
+# ==================== WebSocket 测试 ====================
+
+@pytest.mark.asyncio
+class TestTradingWebSocket:
+    """交易 WebSocket 测试类"""
+
+    @pytest.mark.skip(reason="WebSocket 测试需要异步环境，默认跳过")
+    async def test_trading_websocket_connection(self, base_url: str):
+        """测试交易 WebSocket 连接"""
+        import websockets
+
+        ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://")
+        ws_url = f"{ws_url}/ws/trading"
+
+        async with websockets.connect(ws_url) as websocket:
+            # 接收连接确认消息
+            message = await websocket.recv()
+            data = json.loads(message)
+
+            assert data["type"] == "connected"
+            assert "timestamp" in data
+
+    @pytest.mark.skip(reason="WebSocket 测试需要异步环境，默认跳过")
+    async def test_trading_websocket_heartbeat(self, base_url: str):
+        """测试交易 WebSocket 心跳"""
+        import websockets
+        import json
+
+        ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://")
+        ws_url = f"{ws_url}/ws/trading"
+
+        async with websockets.connect(ws_url) as websocket:
+            # 跳过连接确认消息
+            await websocket.recv()
+
+            # 发送心跳
+            await websocket.send(json.dumps({"type": "ping"}))
+
+            # 接收心跳响应
+            message = await websocket.recv()
+            data = json.loads(message)
+
+            assert data["type"] == "pong"
+            assert "timestamp" in data

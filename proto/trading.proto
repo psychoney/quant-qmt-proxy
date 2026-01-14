@@ -265,39 +265,209 @@ message StrategyListResponse {
   common.Status status = 2;
 }
 
+// ==================== 异步交易 ====================
+
+// 异步下单请求
+message AsyncOrderRequest {
+  string session_id = 1;
+  string stock_code = 2;
+  OrderSide side = 3;
+  OrderType order_type = 4;
+  int64 volume = 5;
+  double price = 6;
+  string strategy_name = 7;  // 可选
+}
+
+// 异步下单响应
+message AsyncOrderResponse {
+  bool success = 1;
+  string message = 2;
+  int64 seq = 3;           // 异步请求序号，用于匹配回调
+  string stock_code = 4;
+  string side = 5;
+  int64 volume = 6;
+  double price = 7;
+  common.Status status = 8;
+}
+
+// 异步撤单请求
+message AsyncCancelRequest {
+  string session_id = 1;
+  string order_id = 2;      // 订单ID（二选一）
+  string order_sysid = 3;   // 柜台合同编号（二选一）
+}
+
+// 异步撤单响应
+message AsyncCancelResponse {
+  bool success = 1;
+  string message = 2;
+  int64 seq = 3;           // 异步请求序号
+  string order_id = 4;
+  common.Status status = 5;
+}
+
+// ==================== 交易回调流 ====================
+
+// 交易回调类型
+enum TradingCallbackType {
+  CALLBACK_TYPE_UNSPECIFIED = 0;
+  CALLBACK_TYPE_CONNECTED = 1;
+  CALLBACK_TYPE_DISCONNECTED = 2;
+  CALLBACK_TYPE_ACCOUNT_STATUS = 3;
+  CALLBACK_TYPE_ASSET = 4;
+  CALLBACK_TYPE_ORDER = 5;
+  CALLBACK_TYPE_TRADE = 6;
+  CALLBACK_TYPE_POSITION = 7;
+  CALLBACK_TYPE_ORDER_ERROR = 8;
+  CALLBACK_TYPE_CANCEL_ERROR = 9;
+  CALLBACK_TYPE_ASYNC_ORDER = 10;
+  CALLBACK_TYPE_ASYNC_CANCEL = 11;
+  CALLBACK_TYPE_HEARTBEAT = 12;
+}
+
+// 交易回调订阅请求
+message TradingCallbackRequest {
+  string account_id = 1;  // 可选，不传则订阅所有账户
+}
+
+// 交易回调消息
+message TradingCallbackMessage {
+  TradingCallbackType callback_type = 1;
+  string account_id = 2;
+  string timestamp = 3;
+  int64 seq = 4;  // 异步请求序号（如果适用）
+
+  // 回调数据（根据 callback_type 使用对应的字段）
+  oneof data {
+    OrderCallbackData order_data = 10;
+    TradeCallbackData trade_data = 11;
+    PositionCallbackData position_data = 12;
+    AssetCallbackData asset_data = 13;
+    ErrorCallbackData error_data = 14;
+    AsyncOrderCallbackData async_order_data = 15;
+    AsyncCancelCallbackData async_cancel_data = 16;
+  }
+}
+
+// 委托回调数据
+message OrderCallbackData {
+  string order_id = 1;
+  string order_sysid = 2;
+  string stock_code = 3;
+  string stock_name = 4;
+  string side = 5;
+  string order_type = 6;
+  int64 volume = 7;
+  double price = 8;
+  string status = 9;
+  string status_msg = 10;
+  int64 filled_volume = 11;
+  double filled_amount = 12;
+  string order_time = 13;
+}
+
+// 成交回调数据
+message TradeCallbackData {
+  string trade_id = 1;
+  string order_id = 2;
+  string order_sysid = 3;
+  string stock_code = 4;
+  string stock_name = 5;
+  string side = 6;
+  int64 volume = 7;
+  double price = 8;
+  double amount = 9;
+  string trade_time = 10;
+  double commission = 11;
+}
+
+// 持仓回调数据
+message PositionCallbackData {
+  string stock_code = 1;
+  string stock_name = 2;
+  int64 volume = 3;
+  int64 available_volume = 4;
+  int64 frozen_volume = 5;
+  double cost_price = 6;
+  double market_price = 7;
+  double market_value = 8;
+  double profit_loss = 9;
+}
+
+// 资金回调数据
+message AssetCallbackData {
+  double total_asset = 1;
+  double market_value = 2;
+  double cash = 3;
+  double frozen_cash = 4;
+  double available_cash = 5;
+}
+
+// 错误回调数据
+message ErrorCallbackData {
+  string error_code = 1;
+  string error_msg = 2;
+  string order_id = 3;
+}
+
+// 异步下单回调数据
+message AsyncOrderCallbackData {
+  int64 seq = 1;
+  string order_id = 2;
+  string error_msg = 3;
+}
+
+// 异步撤单回调数据
+message AsyncCancelCallbackData {
+  int64 seq = 1;
+  string order_id = 2;
+  string error_msg = 3;
+}
+
 // ==================== 交易服务定义 ====================
 
 service TradingService {
   // 连接账户（一元调用）
   rpc Connect(ConnectRequest) returns (ConnectResponse);
-  
+
   // 断开账户（一元调用）
   rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
-  
+
   // 获取账户信息（一元调用）
   rpc GetAccountInfo(DisconnectRequest) returns (ConnectResponse);
-  
+
   // 获取持仓列表（一元调用）
   rpc GetPositions(PositionRequest) returns (PositionListResponse);
-  
+
   // 提交订单（一元调用）
   rpc SubmitOrder(OrderRequest) returns (OrderResponse);
-  
+
   // 撤销订单（一元调用）
   rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
-  
+
   // 获取订单列表（一元调用）
   rpc GetOrders(OrderListRequest) returns (OrderListResponse);
-  
+
   // 获取成交记录（一元调用）
   rpc GetTrades(TradeListRequest) returns (TradeListResponse);
-  
+
   // 获取资产信息（一元调用）
   rpc GetAsset(AssetRequest) returns (AssetResponse);
-  
+
   // 获取风险信息（一元调用）
   rpc GetRiskInfo(RiskInfoRequest) returns (RiskInfoResponse);
-  
+
   // 获取策略列表（一元调用）
   rpc GetStrategies(StrategyListRequest) returns (StrategyListResponse);
+
+  // ==================== 异步交易接口 ====================
+
+  // 异步提交订单（一元调用，结果通过回调流返回）
+  rpc SubmitOrderAsync(AsyncOrderRequest) returns (AsyncOrderResponse);
+
+  // 异步撤销订单（一元调用，结果通过回调流返回）
+  rpc CancelOrderAsync(AsyncCancelRequest) returns (AsyncCancelResponse);
+
+  // 订阅交易回调流（服务端流）
+  rpc StreamTradingCallbacks(TradingCallbackRequest) returns (stream TradingCallbackMessage);
 }
