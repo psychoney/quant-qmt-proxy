@@ -21,7 +21,7 @@ def print_banner(settings):
     grpc_info = f"{settings.grpc_host}:{settings.grpc_port}" if settings.grpc_enabled else "未启用"
     """打印启动横幅"""
     print("\n" + "=" * 80)
-    print("🚀 xtquant-proxy 服务启动中...")
+    print("[*] xtquant-proxy 服务启动中...")
     print("=" * 80)
     print(f"应用名称:     {settings.app.name} v{settings.app.version}")
     print(f"运行模式:     {settings.xtquant.mode.value}")
@@ -33,10 +33,10 @@ def print_banner(settings):
     print(f"API 文档:     http://{settings.app.host}:{settings.app.port}/docs")
     print(f"日志级别:     {settings.logging.level}")
     print("=" * 80)
-    print("\n💡 提示: 使用环境变量 APP_MODE 切换运行模式")
-    print("   • mock - 模拟模式，不连接 xtquant，返回模拟数据")
-    print("   • dev  - 开发模式，连接 xtquant，禁止真实交易")
-    print("   • prod - 生产模式，连接 xtquant，允许真实交易")
+    print("\n[i] 提示: 使用环境变量 APP_MODE 切换运行模式")
+    print("   - mock: 模拟模式，不连接 xtquant，返回模拟数据")
+    print("   - dev:  开发模式，连接 xtquant，禁止真实交易")
+    print("   - prod: 生产模式，连接 xtquant，允许真实交易")
     print("=" * 80 + "\n")
 
 
