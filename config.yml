@@ -24,9 +24,7 @@ grpc:
   max_message_length: 52428800
 
 xtquant:
-  # 在 config.local.yml / config.test.local.yml 中填写本机路径
-  # MiniQMT 通常使用 userdata_mini；券商 QMT / 投研端通常使用 userdata
-  qmt_userdata_path:
+  qmt_userdata_path: "C:\\QMT\\userdata_mini"
   data:
     path: "./data"
     config_path: "./xtquant/config"
