@@ -46,6 +46,19 @@ class LoggingConfig(BaseModel):
     diagnose: bool = False
 
 
+class PreloadConfig(BaseModel):
+    enabled: bool = False
+    async_mode: bool = True
+    timeout: int = 300
+    sector_data: bool = True
+    stock_list: list[str] = Field(default_factory=list)
+    periods: list[str] = Field(default_factory=lambda: ["1d", "1h"])
+    start_date: str = "20160101"
+    end_date: str = ""
+    financial_tables: list[str] = Field(default_factory=list)
+    vip_token: str | None = None
+
+
 class XTQuantDataConfig(BaseModel):
     path: str = "./data"
     config_path: str = "./xtquant/config"
@@ -54,6 +67,7 @@ class XTQuantDataConfig(BaseModel):
     max_subscriptions: int = 100
     heartbeat_interval: int = 60
     whole_quote_enabled: bool = False
+    preload: PreloadConfig = Field(default_factory=PreloadConfig)
 
 
 class XTQuantTradingAccountConfig(BaseModel):
@@ -284,6 +298,10 @@ def load_config(
                     xtquant_data_config.get("heartbeat_timeout", 60),
                 ),
                 "whole_quote_enabled": xtquant_data_config.get("whole_quote_enabled", False),
+                "preload": {
+                    **config_data.get("xtquant", {}).get("preload", {}),
+                    "vip_token": os.getenv("VIP_TOKEN") or config_data.get("xtquant", {}).get("preload", {}).get("vip_token"),
+                },
             },
             "trading": {
                 "mock_account_id": xtquant_trading_config.get("mock_account_id", "mock_account_001"),

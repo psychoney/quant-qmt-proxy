@@ -38,6 +38,7 @@ def print_banner(settings: Settings) -> None:
     print(f"rest         : http://{settings.app.host}:{settings.app.port}")
     print(f"grpc         : {settings.grpc_host}:{settings.grpc_port}")
     print(f"accounts     : {account_profiles}")
+    print(f"preload      : {'enabled' if settings.xtquant.data.preload.enabled else 'disabled'}")
     print(f"debug        : {settings.app.debug}")
     print("=" * 72 + "\n")
 
@@ -47,6 +48,11 @@ def main() -> None:
     settings.app_servers = _normalize_app_servers(settings.app_servers)
     configure_logging_from_settings(settings)
     print_banner(settings)
+
+    if settings.xtquant.data.preload.enabled and settings.xtquant.mode.value != "mock":
+        from app.services.data_preloader import start_preload_sync
+        logger.info("启动数据预下载...")
+        start_preload_sync()
 
     if settings.app_servers == "grpc":
         serve_grpc(settings)

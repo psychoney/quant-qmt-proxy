@@ -40,6 +40,19 @@ xtquant:
     enable_prod_orders: false
     accounts: []
 
+  # 启动时数据预下载配置
+  preload:
+    enabled: false
+    async_mode: false
+    timeout: 300
+    sector_data: true
+    stock_list: []
+    start_date: "20160101"
+    end_date: ""
+    periods:
+      - "1d"
+    financial_tables: []
+
 testing:
   default_account_profile:
   enable_prod_readonly_tests: false
