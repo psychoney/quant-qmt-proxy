@@ -10,11 +10,11 @@ from generated import common_pb2, health_pb2, trading_pb2
 from tests.conftest import GrpcTestContext, RestTestContext
 
 
-REST_HEALTH_ENDPOINTS = {"/", "/health/", "/health/ready", "/health/live"}
+REST_HEALTH_ENDPOINTS = {"/", "/health/", "/health/ready", "/health/live", "/health/preload"}
 GRPC_HEALTH_METHODS = {"Check"}
 
 
-@pytest.mark.parametrize("path", ["/", "/health/", "/health/ready", "/health/live"])
+@pytest.mark.parametrize("path", ["/", "/health/", "/health/ready", "/health/live", "/health/preload"])
 def test_rest_health_endpoints(rest_test_context: RestTestContext, path: str):
     response = rest_test_context.client.get(path)
     assert response.status_code == 200, response.text

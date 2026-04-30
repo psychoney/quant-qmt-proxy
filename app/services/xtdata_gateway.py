@@ -207,6 +207,13 @@ class XtDataGateway:
                 error_code="XTDATA_UNAVAILABLE",
             )
 
+    def _is_market_data_empty(self, raw: Any) -> bool:
+        if not isinstance(raw, dict) or not raw:
+            return True
+        first_frame = next(iter(raw.values()))
+        columns = list(getattr(first_frame, "columns", []))
+        return len(columns) == 0
+
     def get_kline_history(self, query: KlineHistoryQuery) -> list[dict[str, Any]]:
         if self._is_mock_mode():
             return self._mock_kline_history(query)
@@ -221,6 +228,8 @@ class XtDataGateway:
             dividend_type=query.adjust_type,
             fill_data=query.fill_data,
         )
+        if self._is_market_data_empty(raw):
+            return self._get_kline_from_local(query)
         return self._format_kline_history(raw, query.symbols, query.fields)
 
     def get_tick_history(self, query: TickHistoryQuery) -> list[dict[str, Any]]:
@@ -237,7 +246,10 @@ class XtDataGateway:
             dividend_type=query.adjust_type,
             fill_data=False,
         )
-        return self._format_tick_history(raw, query.symbols, query.fields)
+        result = self._format_tick_history(raw, query.symbols, query.fields)
+        if not result or all(len(item.get("ticks", [])) == 0 for item in result):
+            return self._get_tick_from_local(query)
+        return result
 
     def get_full_tick_snapshot(self, symbols: list[str]) -> list[dict[str, Any]]:
         if self._is_mock_mode():
@@ -509,6 +521,69 @@ class XtDataGateway:
             "trade_type": int(normalize_scalar(payload.get("tradeType", payload.get("trade_type", 0))) or 0),
             "trade_flag": int(normalize_scalar(payload.get("tradeFlag", payload.get("trade_flag", 0))) or 0),
         }
+
+    def _get_kline_from_local(self, query: KlineHistoryQuery) -> list[dict[str, Any]]:
+        local_fields = ["open", "high", "low", "close", "volume", "amount"]
+        local = xtdata.get_local_data(
+            field_list=local_fields,
+            stock_list=query.symbols,
+            period=query.period,
+            start_time=query.start_time,
+            end_time=query.end_time,
+            count=-1,
+            fill_data=False,
+        )
+        if not isinstance(local, dict):
+            return []
+        result: list[dict[str, Any]] = []
+        for symbol in query.symbols:
+            df = local.get(symbol)
+            if df is None or not hasattr(df, "iterrows") or len(df) == 0:
+                result.append({"symbol": symbol, "fields": query.fields or KLINE_FIELDS, "bars": []})
+                continue
+            bars: list[dict[str, Any]] = []
+            for date_key, row in df.iterrows():
+                bar = {"time_ms": to_epoch_ms(date_key)}
+                for col in df.columns:
+                    normalized = normalize_scalar(row[col])
+                    key = self._snake_case_field(col)
+                    if key in {"volume", "open_interest", "suspend_flag"}:
+                        bar[key] = int(normalized or 0)
+                    else:
+                        bar[key] = float(normalized or 0.0)
+                bars.append(bar)
+            result.append({"symbol": symbol, "fields": query.fields or KLINE_FIELDS, "bars": bars})
+        return result
+
+    def _get_tick_from_local(self, query: TickHistoryQuery) -> list[dict[str, Any]]:
+        local_fields = ["lastPrice", "open", "high", "low", "lastClose",
+                        "amount", "volume", "pvolume"]
+        local = xtdata.get_local_data(
+            field_list=local_fields,
+            stock_list=query.symbols,
+            period="tick",
+            start_time=query.start_time,
+            end_time=query.end_time,
+            count=-1,
+            fill_data=False,
+        )
+        if not isinstance(local, dict):
+            return []
+        result: list[dict[str, Any]] = []
+        for symbol in query.symbols:
+            rows = local.get(symbol)
+            if rows is None:
+                continue
+            ticks: list[dict[str, Any]] = []
+            if hasattr(rows, "iterrows"):
+                for _, row in rows.iterrows():
+                    ticks.append(self._normalize_tick_payload(row.to_dict()))
+            elif hasattr(rows, "dtype") and getattr(rows.dtype, "names", None):
+                for row in rows:
+                    item = {f: normalize_scalar(row[f]) for f in rows.dtype.names}
+                    ticks.append(self._normalize_tick_payload(item))
+            result.append({"symbol": symbol, "fields": query.fields or TICK_FIELDS, "ticks": ticks})
+        return result
 
     def _mock_kline_history(self, query: KlineHistoryQuery) -> list[dict[str, Any]]:
         base = datetime.strptime(query.start_time or "20250101", "%Y%m%d")
