@@ -214,6 +214,21 @@ class XtDataGateway:
         columns = list(getattr(first_frame, "columns", []))
         return len(columns) == 0
 
+    def _download_history_for_symbols(
+        self, symbols: list[str], period: str, start_time: str, end_time: str
+    ) -> None:
+        end = end_time or datetime.now().strftime("%Y%m%d")
+        for symbol in symbols:
+            try:
+                xtdata.download_history_data(
+                    symbol, period=period, start_time=start_time, end_time=end, incrementally=True
+                )
+            except Exception as exc:
+                logger.warning(f"auto-download failed for {symbol} {period}: {exc}")
+
+    def _has_empty_bars(self, result: list[dict[str, Any]]) -> bool:
+        return not result or all(len(item.get("bars", [])) == 0 for item in result)
+
     def get_kline_history(self, query: KlineHistoryQuery) -> list[dict[str, Any]]:
         if self._is_mock_mode():
             return self._mock_kline_history(query)
@@ -228,9 +243,11 @@ class XtDataGateway:
             dividend_type=query.adjust_type,
             fill_data=query.fill_data,
         )
-        if self._is_market_data_empty(raw):
-            return self._get_kline_from_local(query)
-        return self._format_kline_history(raw, query.symbols, query.fields)
+        if not self._is_market_data_empty(raw):
+            return self._format_kline_history(raw, query.symbols, query.fields)
+        logger.info(f"auto-downloading kline data: symbols={query.symbols}, period={query.period}")
+        self._download_history_for_symbols(query.symbols, query.period, query.start_time, query.end_time)
+        return self._get_kline_from_local(query)
 
     def get_tick_history(self, query: TickHistoryQuery) -> list[dict[str, Any]]:
         if self._is_mock_mode():
@@ -247,9 +264,11 @@ class XtDataGateway:
             fill_data=False,
         )
         result = self._format_tick_history(raw, query.symbols, query.fields)
-        if not result or all(len(item.get("ticks", [])) == 0 for item in result):
-            return self._get_tick_from_local(query)
-        return result
+        if result and any(len(item.get("ticks", [])) > 0 for item in result):
+            return result
+        logger.info(f"auto-downloading tick data: symbols={query.symbols}")
+        self._download_history_for_symbols(query.symbols, "tick", query.start_time, query.end_time)
+        return self._get_tick_from_local(query)
 
     def get_full_tick_snapshot(self, symbols: list[str]) -> list[dict[str, Any]]:
         if self._is_mock_mode():

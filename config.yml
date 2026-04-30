@@ -43,7 +43,7 @@ xtquant:
     enabled: false
     async_mode: false
     timeout: 300
-    sector_data: true
+    sector_data: false
     stock_list: []
     start_date: "20160101"
     end_date: ""
