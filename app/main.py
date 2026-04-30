@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.dependencies import get_trading_session_manager, get_ui_subscription_service
-from app.routers import data, health, trading, websocket
+from app.routers import akshare, data, health, trading, websocket
 from app.utils.exceptions import XTQuantException, handle_xtquant_exception
 from app.utils.helpers import format_response
 from app.utils.logger import configure_logging_from_settings, log_runtime_configuration, logger
@@ -113,6 +113,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(health.router)
 app.include_router(data.router)
 app.include_router(trading.router)
+app.include_router(akshare.router)
 app.include_router(websocket.router)
 
 

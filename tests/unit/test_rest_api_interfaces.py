@@ -30,6 +30,7 @@ REST_TESTED_ENDPOINTS = {
     "/api/v1/trading/sessions/{session_id}/orders",
     "/api/v1/trading/sessions/{session_id}/trades",
     "/api/v1/trading/sessions/{session_id}/cancel",
+    "/api/v1/akshare/kline",
 }
 
 
@@ -339,3 +340,15 @@ def test_websocket_quote_stream_interface(
     else:
         assert message["type"] == "quote"
         assert message["data"]["symbol"] == xt_default_symbols[0]
+
+
+def test_rest_akshare_kline_interface(rest_test_context: RestTestContext):
+    response = rest_test_context.client.post(
+        "/api/v1/akshare/kline",
+        json={"symbol": "000001", "asset_type": "index", "period": "daily", "start_date": "20250101", "end_date": "20250110"},
+        headers=rest_test_context.headers,
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["success"] is True
+    assert "items" in payload["data"]

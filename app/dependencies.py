@@ -8,6 +8,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import Settings, XTQuantMode, get_settings
+from app.services.akshare_service import AkshareService
 from app.services.market_data_service import MarketDataService
 from app.services.reference_data_service import ReferenceDataService
 from app.services.trading_event_hub import TradingEventHub
@@ -27,6 +28,7 @@ _reference_data_service: ReferenceDataService | None = None
 _ui_subscription_service: UiSubscriptionService | None = None
 _trading_event_hub: TradingEventHub | None = None
 _trading_session_manager: TradingSessionManager | None = None
+_akshare_service: AkshareService | None = None
 
 
 def get_xtdata_gateway(settings: Settings = Depends(get_settings)) -> XtDataGateway:
@@ -85,6 +87,13 @@ def get_trading_session_manager(settings: Settings = Depends(get_settings)) -> T
 get_data_service = get_market_data_service
 get_subscription_manager = get_subscription_hub
 get_trading_service = get_trading_session_manager
+
+
+def get_akshare_service() -> AkshareService:
+    global _akshare_service
+    if _akshare_service is None:
+        _akshare_service = AkshareService()
+    return _akshare_service
 
 
 async def get_api_key(
@@ -153,3 +162,4 @@ def reset_services() -> None:
     _ui_subscription_service = None
     _trading_event_hub = None
     _trading_session_manager = None
+    _akshare_service = None

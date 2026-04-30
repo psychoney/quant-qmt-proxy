@@ -100,3 +100,19 @@ class QuoteSubscriptionRequestModel(BaseModel):
 
 class WholeQuoteSubscriptionRequestModel(BaseModel):
     markets: list[str] = Field(default_factory=lambda: ["SH", "SZ"])
+
+
+class AkshareKlineRequestModel(BaseModel):
+    symbol: str
+    asset_type: str = "index"
+    period: str = "daily"
+    start_date: str = ""
+    end_date: str = ""
+    adjust: str = ""
+
+    @field_validator("asset_type")
+    @classmethod
+    def validate_asset_type(cls, value: str) -> str:
+        if value not in {"index", "stock"}:
+            raise ValueError("asset_type must be 'index' or 'stock'")
+        return value
